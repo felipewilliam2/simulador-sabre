@@ -44,7 +44,7 @@
 
   .modes{display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap}
   .seg{flex:1; min-width:160px; border:1px solid var(--line); border-radius:8px; padding:12px;
-    cursor:pointer; transition:.15s}
+    cursor:pointer; transition:.15s; background:transparent; font:inherit; color:inherit; text-align:left}
   .seg:hover{border-color:var(--green-dim)}
   .seg.on{border-color:var(--green); background:#0d1a10}
   .seg b{color:var(--green); display:block; font-size:13px; margin-bottom:3px}
@@ -71,6 +71,11 @@
   .prompt-line .ar{color:var(--green); font-weight:700}
   .prompt-line input{flex:1; background:transparent; border:none; outline:none; color:var(--green);
     font-family:var(--mono); font-size:16px; padding:14px 0; letter-spacing:1px; text-transform:uppercase}
+
+  /* foco visível por teclado (a11y) */
+  .prompt-line:focus-within{border-color:var(--green); box-shadow:0 0 0 1px var(--green) inset}
+  button:focus-visible, .seg:focus-visible, a:focus-visible{outline:2px solid var(--green); outline-offset:2px}
+  label.mod:focus-within{outline:2px solid var(--green); outline-offset:2px; border-color:var(--green-dim)}
   .row{display:flex; gap:8px; margin-top:12px}
   .row button{flex:1; font-family:var(--mono); border:1px solid var(--line); background:#0c130c; color:var(--txt);
     padding:11px; border-radius:8px; cursor:pointer; font-size:13px}
@@ -117,10 +122,37 @@
   .brk-tip{font-size:12px; color:var(--amber); margin-top:6px; line-height:1.5}
 
   footer{margin-top:14px; color:var(--muted); font-size:11px; line-height:1.5; text-align:center}
-  footer code{color:var(--green-dim)}
+  footer code{color:var(--green)}
   a{color:var(--green-dim)}
   .hidden{display:none}
   kbd{border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-size:11px; color:var(--muted)}
+  .warn{color:var(--red); font-size:12px; letter-spacing:.5px; margin:0 0 10px}
+
+  .firstrun{display:flex; gap:10px; align-items:flex-start; border:1px dashed var(--green-dim);
+    border-radius:9px; padding:11px 13px; margin-bottom:16px; background:#0b140d;
+    font-size:12.5px; line-height:1.5; color:var(--txt)}
+  .firstrun b{color:var(--green)}
+  .firstrun .fr-x{margin-left:auto; background:none; border:none; color:var(--muted); cursor:pointer;
+    font:inherit; font-size:13px; line-height:1; padding:2px 4px; border-radius:5px}
+  .firstrun .fr-x:hover{color:var(--green)}
+  .modtools{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:8px; font-size:11px}
+  .modtools .sep{color:var(--line)}
+  .linkbtn{background:none; border:none; color:var(--muted); cursor:pointer; font:inherit;
+    letter-spacing:.5px; padding:2px 4px; border-radius:5px}
+  .linkbtn:hover{color:var(--green)}
+
+  .confirm{display:flex; gap:12px; align-items:center; flex-wrap:wrap; border:1px solid var(--amber);
+    border-radius:9px; padding:12px 14px; margin-bottom:16px; background:#161003; font-size:13px; color:var(--txt)}
+  .confirm #exitMsg{color:var(--amber)}
+  .confirm-row{display:flex; gap:8px; margin-left:auto}
+  .confirm-row button{font-family:var(--mono); border:1px solid var(--line); background:#0c130c; color:var(--txt);
+    padding:9px 13px; border-radius:7px; cursor:pointer; font-size:12px}
+  .confirm-row button:hover{border-color:var(--green-dim)}
+  .confirm-row button.primary{background:var(--green); color:#04140a; border-color:var(--green); font-weight:700}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important}
+  }
 </style>
 </head>
 <body>
@@ -139,27 +171,45 @@
       <h2>Configurar treino</h2>
       <p class="lead">Selecione os módulos e o modo. Disponibilidade e Venda geram exercícios novos a cada rodada (cidades, datas, classes e linhas sorteadas). É assim que você cria memória muscular de verdade.</p>
 
+      <div class="firstrun hidden" id="firstrun">
+        <div><b>Primeira vez?</b> A seleção abaixo já cobre o básico: tecle <b>INICIAR</b>. Ao errar um comando, o simulador mostra a resposta certa e explica cada caractere.</div>
+        <button type="button" class="fr-x" id="frClose" aria-label="Dispensar dica">✕</button>
+      </div>
+
+      <div class="modtools">
+        <button type="button" class="linkbtn" id="selAll">marcar todos</button>
+        <span class="sep">·</span>
+        <button type="button" class="linkbtn" id="selNone">limpar</button>
+      </div>
       <div class="mods" id="mods"></div>
 
-      <div class="modes">
-        <div class="seg on" data-mode="practice">
+      <div class="modes" role="group" aria-label="Modo de treino">
+        <button type="button" class="seg on" data-mode="practice" aria-pressed="true">
           <b>⌨️  Praticar</b><span>Você digita o comando. O sistema corrige e explica.</span>
-        </div>
-        <div class="seg" data-mode="flash">
+        </button>
+        <button type="button" class="seg" data-mode="flash" aria-pressed="false">
           <b>🃏  Flashcard</b><span>Vê a tarefa, tenta de cabeça e revela a resposta.</span>
-        </div>
-        <div class="seg" data-mode="pnr">
+        </button>
+        <button type="button" class="seg" data-mode="pnr" aria-pressed="false">
           <b>📋  PNR completo</b><span>Monte reservas inteiras em sequência, como no teste de uma agência.</span>
-        </div>
+        </button>
       </div>
 
       <p class="lead hidden" id="pnrNote" style="margin-top:-8px; color:var(--amber)">No modo <b>PNR completo</b>, a seleção de módulos acima é ignorada. Você monta 3 reservas completas com passageiro, trecho, data e classe sorteados a cada rodada.</p>
 
+      <p class="warn hidden" id="noMods" role="alert">⚠ Selecione ao menos um módulo para começar.</p>
       <button class="go" id="start">INICIAR TREINO</button>
     </div>
 
     <!-- PRACTICE -->
     <div class="pad hidden" id="play">
+      <div class="confirm hidden" id="exitConfirm" role="alertdialog" aria-labelledby="exitMsg">
+        <span id="exitMsg">Sair do treino? Você perde o progresso desta rodada.</span>
+        <div class="confirm-row">
+          <button type="button" class="primary" id="exitStay">Continuar treino</button>
+          <button type="button" id="exitLeave">Sair sem salvar</button>
+        </div>
+      </div>
       <div class="meta">
         <span class="tag">Acertos <b id="m-score">0</b>/<b id="m-tot">0</b></span>
         <span class="tag">Precisão <b id="m-acc">100%</b></span>
@@ -464,11 +514,24 @@ MODULES.forEach((m,i)=>{
     <span>${m.label}</span><span class="cnt">${count}</span>`;
   modsEl.appendChild(el);
 });
+modsEl.addEventListener("change",()=>$("#noMods").classList.add("hidden"));
+
+// seleção em massa de módulos
+$("#selAll").addEventListener("click",()=>{ document.querySelectorAll("#mods input").forEach(c=>c.checked=true); $("#noMods").classList.add("hidden"); });
+$("#selNone").addEventListener("click",()=>{ document.querySelectorAll("#mods input").forEach(c=>c.checked=false); });
+
+// dica de primeira-vez (mostrada só até o usuário iniciar um treino ou dispensar)
+const ONBOARD_KEY="sabre-onboarded";
+function isOnboarded(){ try{ return localStorage.getItem(ONBOARD_KEY)==="1"; }catch(e){ return false; } }
+function setOnboarded(){ try{ localStorage.setItem(ONBOARD_KEY,"1"); }catch(e){} $("#firstrun").classList.add("hidden"); }
+if(!isOnboarded()) $("#firstrun").classList.remove("hidden");
+$("#frClose").addEventListener("click",setOnboarded);
 
 document.querySelectorAll(".seg").forEach(s=>{
   s.addEventListener("click",()=>{
-    document.querySelectorAll(".seg").forEach(x=>x.classList.remove("on"));
-    s.classList.add("on"); MODE = s.dataset.mode;
+    document.querySelectorAll(".seg").forEach(x=>{ x.classList.remove("on"); x.setAttribute("aria-pressed","false"); });
+    s.classList.add("on"); s.setAttribute("aria-pressed","true"); MODE = s.dataset.mode;
+    $("#noMods").classList.add("hidden");
     $("#pnrNote").classList.toggle("hidden", MODE!=="pnr");
     $("#mods").style.opacity = (MODE==="pnr") ? .4 : 1;
   });
@@ -491,7 +554,9 @@ $("#again").addEventListener("click",()=>{ show("setup"); });
 
 function start(){
   deck = (MODE==="pnr") ? buildPnrDeck(3) : buildDeck();
-  if(!deck.length){ alert("Selecione ao menos um módulo."); return; }
+  if(!deck.length){ $("#noMods").classList.remove("hidden"); $("#start").focus(); return; }
+  $("#noMods").classList.add("hidden");
+  setOnboarded();
   idx=0; score=0; tot=0; streak=0; best=0; modStats={};
   const typed = (MODE!=="flash");           // praticar e PNR usam entrada digitada
   $("#practiceUI").classList.toggle("hidden", !typed);
@@ -502,6 +567,9 @@ function start(){
 /* ============================ NAVEGAÇÃO TELAS ============================ */
 function show(id){
   ["setup","play","done"].forEach(s=>$("#"+s).classList.toggle("hidden", s!==id));
+  $("#exitConfirm").classList.add("hidden");
+  if(id==="setup") $("#start").focus();
+  else if(id==="done") $("#again").focus();
 }
 
 /* ============================ NORMALIZAÇÃO / CHECAGEM ============================ */
@@ -581,7 +649,7 @@ $("#hint").addEventListener("click",()=>{
   $("#fb").innerHTML=`<div class="head">💡 Dica</div>Começa com <code>${shown}…</code> &nbsp;(${a.length} caracteres)`;
   $("#answer").focus();
 });
-$("#answer").addEventListener("keydown",e=>{ if(e.key==="Enter") submitOrNext(); });
+$("#answer").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.stopPropagation(); submitOrNext(); } });
 
 function submitOrNext(){
   if(answered){ next(); return; }
@@ -658,7 +726,33 @@ function finish(){
 }
 
 /* ============================ ATALHOS ============================ */
-document.addEventListener("keydown",e=>{ if(e.key==="Escape") show("setup"); });
+/* ---- confirmação ao sair de um treino em andamento ---- */
+function exitOpen(){ return !$("#exitConfirm").classList.contains("hidden"); }
+function openExitConfirm(){ $("#exitConfirm").classList.remove("hidden"); $("#exitStay").focus(); }
+function closeExitConfirm(){
+  $("#exitConfirm").classList.add("hidden");
+  if(MODE!=="flash"){
+    if(!answered){ const i=$("#answer"); if(i && !i.disabled) i.focus(); }
+    else $("#check").focus();
+  }else{
+    if(!$("#flashBtns1").classList.contains("hidden")) $("#revealBtn").focus();
+    else $("#hit").focus();
+  }
+}
+$("#exitStay").addEventListener("click",closeExitConfirm);
+$("#exitLeave").addEventListener("click",()=>show("setup"));
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    if(exitOpen()){ closeExitConfirm(); return; }                              // Esc cancela a confirmação
+    if(!$("#play").classList.contains("hidden") && tot>0){ openExitConfirm(); return; } // treino com progresso: confirmar
+    show("setup"); return;                                                     // nada a perder
+  }
+  // Enter avança quando a resposta já foi verificada (input fica disabled, foco sai do campo)
+  if(e.key==="Enter" && answered && MODE!=="flash" && !$("#play").classList.contains("hidden") && !exitOpen()){
+    e.preventDefault(); submitOrNext();
+  }
+});
 </script>
 </body>
 </html>
