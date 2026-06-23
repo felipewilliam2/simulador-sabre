@@ -568,6 +568,8 @@ function start(){
 function show(id){
   ["setup","play","done"].forEach(s=>$("#"+s).classList.toggle("hidden", s!==id));
   $("#exitConfirm").classList.add("hidden");
+  if(id==="setup") $("#start").focus();
+  else if(id==="done") $("#again").focus();
 }
 
 /* ============================ NORMALIZAÇÃO / CHECAGEM ============================ */
@@ -729,7 +731,13 @@ function exitOpen(){ return !$("#exitConfirm").classList.contains("hidden"); }
 function openExitConfirm(){ $("#exitConfirm").classList.remove("hidden"); $("#exitStay").focus(); }
 function closeExitConfirm(){
   $("#exitConfirm").classList.add("hidden");
-  if(MODE!=="flash" && !answered){ const i=$("#answer"); if(i && !i.disabled) i.focus(); }
+  if(MODE!=="flash"){
+    if(!answered){ const i=$("#answer"); if(i && !i.disabled) i.focus(); }
+    else $("#check").focus();
+  }else{
+    if(!$("#flashBtns1").classList.contains("hidden")) $("#revealBtn").focus();
+    else $("#hit").focus();
+  }
 }
 $("#exitStay").addEventListener("click",closeExitConfirm);
 $("#exitLeave").addEventListener("click",()=>show("setup"));
