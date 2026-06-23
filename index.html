@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador Sabre GDS · Treino de Comandos</title>
+<style>
+  :root{
+    --bg:#0a0e0a; --panel:#0f160f; --line:#1d2a1d;
+    --green:#3df57a; --green-dim:#1f7a3c; --amber:#ffcc66;
+    --red:#ff5d5d; --txt:#cfe8d4; --muted:#7a9a83;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code','Courier New',monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:radial-gradient(120% 80% at 50% -10%,#10231a 0%,var(--bg) 60%);
+    color:var(--txt); font-family:var(--mono); min-height:100vh;
+    display:flex; align-items:flex-start; justify-content:center; padding:24px;
+  }
+  .app{width:100%; max-width:780px}
+  header{display:flex; align-items:center; gap:12px; margin-bottom:14px}
+  .logo{font-weight:700; letter-spacing:2px; color:var(--green); font-size:18px}
+  .logo small{color:var(--muted); font-weight:400; letter-spacing:1px}
+  .badge{margin-left:auto; font-size:11px; color:var(--muted); border:1px solid var(--line);
+    padding:4px 8px; border-radius:6px}
+
+  .screen{background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 0 0 1px #000 inset, 0 18px 40px -20px #000; overflow:hidden}
+  .bar{display:flex; gap:6px; padding:10px 14px; border-bottom:1px solid var(--line); align-items:center}
+  .dot{width:11px;height:11px;border-radius:50%;background:#2a3a2a}
+  .dot.r{background:#ff5f56}.dot.y{background:#ffbd2e}.dot.g{background:#27c93f}
+  .bar .t{margin-left:8px; color:var(--muted); font-size:12px}
+  .pad{padding:22px}
+
+  h2{margin:0 0 6px; color:var(--green); font-size:15px; letter-spacing:1px}
+  p.lead{color:var(--muted); margin:0 0 18px; font-size:13px; line-height:1.5}
+
+  .mods{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; margin-bottom:18px}
+  label.mod{display:flex; gap:9px; align-items:center; border:1px solid var(--line);
+    padding:10px 12px; border-radius:8px; cursor:pointer; font-size:13px; transition:.15s}
+  label.mod:hover{border-color:var(--green-dim); background:#0c130c}
+  label.mod input{accent-color:var(--green); width:15px;height:15px}
+  label.mod .cnt{margin-left:auto; color:var(--muted); font-size:11px}
+
+  .modes{display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap}
+  .seg{flex:1; min-width:160px; border:1px solid var(--line); border-radius:8px; padding:12px;
+    cursor:pointer; transition:.15s}
+  .seg:hover{border-color:var(--green-dim)}
+  .seg.on{border-color:var(--green); background:#0d1a10}
+  .seg b{color:var(--green); display:block; font-size:13px; margin-bottom:3px}
+  .seg span{color:var(--muted); font-size:11px; line-height:1.4}
+
+  button.go{width:100%; background:var(--green); color:#04140a; border:none; font-family:var(--mono);
+    font-weight:700; letter-spacing:1px; padding:14px; border-radius:9px; cursor:pointer; font-size:14px}
+  button.go:hover{filter:brightness(1.08)}
+  button.go:disabled{opacity:.4; cursor:not-allowed}
+
+  /* practice */
+  .meta{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:16px; font-size:12px; color:var(--muted)}
+  .meta b{color:var(--green)}
+  .meta .tag{border:1px solid var(--line); padding:3px 8px; border-radius:20px}
+  .progress{height:6px; background:#0a120a; border-radius:6px; overflow:hidden; margin-bottom:18px}
+  .progress i{display:block; height:100%; background:linear-gradient(90deg,var(--green-dim),var(--green)); width:0; transition:.3s}
+
+  .task{border:1px dashed var(--green-dim); border-radius:10px; padding:16px 18px; margin-bottom:16px; background:#0b140d}
+  .task .k{font-size:11px; letter-spacing:1px; color:var(--amber); text-transform:uppercase; margin-bottom:8px}
+  .task .q{font-size:15px; line-height:1.55; color:#eafff0}
+
+  .prompt-line{display:flex; align-items:center; gap:8px; border:1px solid var(--line);
+    border-radius:9px; padding:0 12px; background:#060a06}
+  .prompt-line .ar{color:var(--green); font-weight:700}
+  .prompt-line input{flex:1; background:transparent; border:none; outline:none; color:var(--green);
+    font-family:var(--mono); font-size:16px; padding:14px 0; letter-spacing:1px; text-transform:uppercase}
+  .row{display:flex; gap:8px; margin-top:12px}
+  .row button{flex:1; font-family:var(--mono); border:1px solid var(--line); background:#0c130c; color:var(--txt);
+    padding:11px; border-radius:8px; cursor:pointer; font-size:13px}
+  .row button:hover{border-color:var(--green-dim)}
+  .row button.primary{background:var(--green); color:#04140a; border-color:var(--green); font-weight:700}
+
+  .fb{margin-top:14px; border-radius:9px; padding:14px 16px; font-size:13px; line-height:1.5; display:none}
+  .fb.ok{display:block; border:1px solid var(--green-dim); background:#0a1a0f}
+  .fb.no{display:block; border:1px solid #5a2020; background:#1a0a0a}
+  .fb .head{font-weight:700; margin-bottom:6px}
+  .fb.ok .head{color:var(--green)} .fb.no .head{color:var(--red)}
+  .fb code{background:#04140a; border:1px solid var(--line); padding:2px 7px; border-radius:5px; color:var(--green); letter-spacing:1px}
+  .fb .ex{color:var(--muted); margin-top:8px; font-size:12px}
+
+  .reveal{margin-top:14px; border:1px solid var(--line); border-radius:9px; padding:14px 16px; display:none}
+  .reveal.show{display:block}
+  .reveal .ans{font-size:20px; color:var(--green); letter-spacing:2px; margin-bottom:8px}
+  .reveal .ex{color:var(--muted); font-size:12px; line-height:1.5}
+
+  .end{text-align:center; padding:10px 0}
+  .end .big{font-size:34px; color:var(--green); margin:8px 0}
+  .end .sub{color:var(--muted); font-size:13px; margin-bottom:18px}
+
+  /* PNR completo */
+  .ficha{border:1px solid var(--green-dim); border-radius:10px; padding:14px 16px; margin-bottom:12px; background:#081208}
+  .ficha-h{font-size:11px; letter-spacing:1px; color:var(--green); text-transform:uppercase; margin-bottom:10px}
+  .ficha-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:9px 18px}
+  .ficha-grid div{font-size:13px; color:#eafff0}
+  .ficha-grid div span{display:block; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px}
+  .checklist{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px}
+  .chip{font-size:11px; border:1px solid var(--line); border-radius:20px; padding:4px 11px; color:var(--muted)}
+  .chip.done{border-color:var(--green-dim); color:var(--green)}
+  .chip.cur{border-color:var(--amber); color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset}
+  .locator{margin-top:10px; color:var(--amber); font-size:14px}
+
+  /* placar por módulo */
+  .breakdown{text-align:left; margin:4px 0 22px}
+  .brk-title{font-size:11px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:12px}
+  .brk-row{display:flex; align-items:center; gap:10px; margin-bottom:9px}
+  .brk-name{flex:0 0 38%; font-size:12px; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .brk-bar{flex:1; height:8px; background:#0a120a; border-radius:6px; overflow:hidden}
+  .brk-bar i{display:block; height:100%; border-radius:6px; transition:width .4s}
+  .brk-val{flex:0 0 78px; text-align:right; font-size:12px; color:var(--muted)}
+  .brk-tip{font-size:12px; color:var(--amber); margin-top:6px; line-height:1.5}
+
+  footer{margin-top:14px; color:var(--muted); font-size:11px; line-height:1.5; text-align:center}
+  footer code{color:var(--green-dim)}
+  a{color:var(--green-dim)}
+  .hidden{display:none}
+  kbd{border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-size:11px; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">SABRE<small>·TRAINER</small></div>
+    <div class="badge">Anhangá.tech · treino offline</div>
+  </header>
+
+  <div class="screen">
+    <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="t">terminal de treino · sem conexão com sistema real</span></div>
+
+    <!-- SETUP -->
+    <div class="pad" id="setup">
+      <h2>Configurar treino</h2>
+      <p class="lead">Selecione os módulos e o modo. Disponibilidade e Venda geram exercícios novos a cada rodada (cidades, datas, classes e linhas sorteadas). É assim que você cria memória muscular de verdade.</p>
+
+      <div class="mods" id="mods"></div>
+
+      <div class="modes">
+        <div class="seg on" data-mode="practice">
+          <b>⌨️  Praticar</b><span>Você digita o comando. O sistema corrige e explica.</span>
+        </div>
+        <div class="seg" data-mode="flash">
+          <b>🃏  Flashcard</b><span>Vê a tarefa, tenta de cabeça e revela a resposta.</span>
+        </div>
+        <div class="seg" data-mode="pnr">
+          <b>📋  PNR completo</b><span>Monte reservas inteiras em sequência, como no teste de uma agência.</span>
+        </div>
+      </div>
+
+      <p class="lead hidden" id="pnrNote" style="margin-top:-8px; color:var(--amber)">No modo <b>PNR completo</b>, a seleção de módulos acima é ignorada. Você monta 3 reservas completas com passageiro, trecho, data e classe sorteados a cada rodada.</p>
+
+      <button class="go" id="start">INICIAR TREINO</button>
+    </div>
+
+    <!-- PRACTICE -->
+    <div class="pad hidden" id="play">
+      <div class="meta">
+        <span class="tag">Acertos <b id="m-score">0</b>/<b id="m-tot">0</b></span>
+        <span class="tag">Precisão <b id="m-acc">100%</b></span>
+        <span class="tag">Sequência <b id="m-streak">0</b></span>
+        <span class="tag">Recorde <b id="m-best">0</b></span>
+        <span class="tag" id="m-mod" style="margin-left:auto"></span>
+      </div>
+      <div class="progress"><i id="prog"></i></div>
+
+      <div id="pnrPanel" class="hidden">
+        <div class="ficha">
+          <div class="ficha-h">📋 Ficha da reserva · PNR <span id="pnr-num"></span></div>
+          <div class="ficha-grid" id="pnr-brief"></div>
+        </div>
+        <div class="checklist" id="pnr-steps"></div>
+      </div>
+
+      <div class="task">
+        <div class="k" id="t-cat">tarefa</div>
+        <div class="q" id="t-q">…</div>
+      </div>
+
+      <!-- practice input -->
+      <div id="practiceUI">
+        <div class="prompt-line">
+          <span class="ar">»</span>
+          <input id="answer" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="digite o comando Sabre…">
+        </div>
+        <div class="row">
+          <button id="hint">💡 Dica</button>
+          <button id="skip">Pular</button>
+          <button class="primary" id="check">Verificar ⏎</button>
+        </div>
+        <div class="fb" id="fb"></div>
+      </div>
+
+      <!-- flashcard -->
+      <div id="flashUI" class="hidden">
+        <div class="reveal" id="reveal">
+          <div class="ans" id="r-ans"></div>
+          <div class="ex" id="r-ex"></div>
+        </div>
+        <div class="row" id="flashBtns1">
+          <button class="primary" id="revealBtn">Revelar resposta</button>
+        </div>
+        <div class="row hidden" id="flashBtns2">
+          <button id="miss">❌ Errei</button>
+          <button class="primary" id="hit">✅ Acertei</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- END -->
+    <div class="pad hidden" id="done">
+      <div class="end">
+        <h2>Treino concluído</h2>
+        <div class="big" id="e-acc">100%</div>
+        <div class="sub" id="e-sub"></div>
+        <div class="breakdown" id="e-breakdown"></div>
+        <button class="go" id="again">NOVO TREINO</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Formatos baseados em entradas reais do Sabre. Confirme variações no <code>Format Finder</code> da sua agência.<br>
+    <kbd>Enter</kbd> verifica / avança · <kbd>Esc</kbd> volta ao início
+  </footer>
+</div>
+
+<script>
+/* ============================ BANCO DE EXERCÍCIOS ============================ */
+const CITIES = [
+  ["GRU","São Paulo (Guarulhos)"],["GIG","Rio de Janeiro (Galeão)"],["BSB","Brasília"],
+  ["CNF","Belo Horizonte"],["SSA","Salvador"],["REC","Recife"],["POA","Porto Alegre"],
+  ["MIA","Miami"],["JFK","Nova York"],["LIS","Lisboa"],["MAD","Madri"],["LHR","Londres"],
+  ["SCL","Santiago"],["EZE","Buenos Aires"],["MCO","Orlando"]
+];
+const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const CLASSES = ["Y","Q","M","B","H","K","W"];
+const rnd = a => a[Math.floor(Math.random()*a.length)];
+const rint = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+
+// Geradores dinâmicos
+function genAvailability(){
+  let o = rnd(CITIES), d = rnd(CITIES); while(d[0]===o[0]) d = rnd(CITIES);
+  const day = rint(10,28), mon = rnd(MONTHS);
+  return {
+    cat:"Disponibilidade",
+    q:`Pesquise voos de <b>${o[1]} (${o[0]})</b> para <b>${d[1]} (${d[0]})</b> no dia <b>${day} ${mon}</b>.`,
+    answer:`1${day}${mon}${o[0]}${d[0]}`,
+    accept:[`1${day}${mon}${o[0]}${d[0]}`],
+    ex:`<b>1</b> = comando de disponibilidade · depois a data <b>${day}${mon}</b> · depois o par de cidades <b>${o[0]}${d[0]}</b> (origem+destino).`
+  };
+}
+function genSell(){
+  const qty = rint(1,4), cls = rnd(CLASSES), line = rint(1,6);
+  return {
+    cat:"Venda",
+    q:`Na tela de disponibilidade, <b>venda ${qty} assento(s)</b> na classe <b>${cls}</b>, <b>linha ${line}</b>.`,
+    answer:`0${qty}${cls}${line}`,
+    accept:[`0${qty}${cls}${line}`],
+    ex:`<b>0</b> = vender (sell) · <b>${qty}</b> = qtd. de assentos · <b>${cls}</b> = classe · <b>${line}</b> = linha do voo na tela.`
+  };
+}
+function genSeat(){
+  const seg = rint(1,3);
+  return {
+    cat:"Assentos",
+    q:`Exiba o <b>mapa de assentos</b> do <b>segmento ${seg}</b> da reserva.`,
+    answer:`4G${seg}`,
+    accept:[`4G${seg}`],
+    ex:`<b>4G</b> abre o mapa de assentos (seat map) · <b>${seg}</b> = número do segmento de voo.`
+  };
+}
+function genCancel(){
+  if(Math.random() < 0.3){
+    return {
+      cat:"Itinerário · modificar",
+      q:`<b>Cancele o itinerário inteiro</b> (todos os segmentos de voo) do PNR.`,
+      answer:`XI`,
+      accept:[`XI`],
+      ex:`<b>XI</b> = cancel Itinerary: remove todos os segmentos de uma vez. Não confunda com <b>I</b> (ignore).`
+    };
+  }
+  const seg = rint(1,4);
+  return {
+    cat:"Itinerário · modificar",
+    q:`<b>Cancele</b> apenas o <b>segmento ${seg}</b> do itinerário.`,
+    answer:`X${seg}`,
+    accept:[`X${seg}`],
+    ex:`<b>X</b> = cancelar (cancel) · <b>${seg}</b> = número do segmento. Depois é preciso finalizar com <b>ER</b>.`
+  };
+}
+
+/* ---- Modo PNR completo: monta uma reserva inteira em sequência ---- */
+const LASTNAMES=["SILVA","SANTOS","OLIVEIRA","SOUZA","PEREIRA","COSTA","RAMOS","ALMEIDA","NUNES","CARVALHO","LIMA","GOMES"];
+const FIRSTS=[{n:"JOAO",t:"MR"},{n:"PEDRO",t:"MR"},{n:"LUCAS",t:"MR"},{n:"PAULO",t:"MR"},{n:"RAFAEL",t:"MR"},{n:"BRUNO",t:"MR"},
+              {n:"MARIA",t:"MS"},{n:"ANA",t:"MS"},{n:"QUEILA",t:"MS"},{n:"BRUNA",t:"MS"},{n:"JULIA",t:"MS"},{n:"CARLA",t:"MRS"}];
+function randomLocator(){ const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s=""; for(let i=0;i<6;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
+function genPnr(){
+  const last=rnd(LASTNAMES), f=rnd(FIRSTS);
+  let o=rnd(CITIES), d=rnd(CITIES); while(d[0]===o[0]) d=rnd(CITIES);
+  const day=rint(10,28), mon=rnd(MONTHS), cls=rnd(["Y","Q","M","H"]);
+  const num=`${rint(2,5)}${rint(100,999)}-${rint(1000,9999)}`, city=o[0];
+  const steps=[
+    {name:"Disponibilidade",
+     q:`<b>Passo 1: Disponibilidade.</b> Pesquise voos de <b>${o[1]} (${o[0]})</b> para <b>${d[1]} (${d[0]})</b> em <b>${day} ${mon}</b>.`,
+     answer:`1${day}${mon}${o[0]}${d[0]}`, accept:[`1${day}${mon}${o[0]}${d[0]}`],
+     ex:`<b>1</b> + data <b>${day}${mon}</b> + par de cidades <b>${o[0]}${d[0]}</b>.`},
+    {name:"Venda",
+     q:`<b>Passo 2: Venda.</b> Venda <b>1 assento</b> na classe <b>${cls}</b>, na <b>linha 1</b> da disponibilidade.`,
+     answer:`01${cls}1`, accept:[`01${cls}1`],
+     ex:`<b>0</b> = vender · <b>1</b> assento · classe <b>${cls}</b> · linha <b>1</b>.`},
+    {name:"Nome",
+     q:`<b>Passo 3: Nome.</b> Insira o passageiro: <b>${f.n} ${last}</b>, tratamento <b>${f.t}</b>.`,
+     answer:`-${last}/${f.n} ${f.t}`, accept:[`-${last}/${f.n} ${f.t}`,`-${last}/${f.n}${f.t}`],
+     ex:`Campo de nome: <b>-SOBRENOME/NOME TÍTULO</b>.`},
+    {name:"Telefone",
+     q:`<b>Passo 4: Telefone.</b> Adicione o telefone da agência em <b>${city}</b>: <b>${num}</b> (tipo A = agência).`,
+     answer:`9${city}${num}-A`, accept:[`9${city}${num}-A`,`9${city} ${num}-A`],
+     ex:`Campo <b>9</b> + cidade + número + <b>-A</b> (Agency).`},
+    {name:"Emissão (TAW)",
+     q:`<b>Passo 5: Emissão.</b> Insira o campo de limite de emissão automático (TAW).`,
+     answer:`7TAW/`, accept:[`7TAW/`,`7TAW`],
+     ex:`Campo <b>7</b> = ticketing · <b>TAW</b> = emite no prazo automaticamente.`},
+    {name:"Recebido de",
+     q:`<b>Passo 6: Recebido de.</b> Registre que a solicitação foi recebida do <b>passageiro</b>.`,
+     answer:`6P`, accept:[`6P`],
+     ex:`Campo <b>6</b> = received from · <b>P</b> = passageiro.`},
+    {name:"Finalizar",
+     q:`<b>Passo 7: Finalizar.</b> Salve e reexiba o PNR para gerar o localizador.`,
+     answer:`ER`, accept:[`ER`],
+     ex:`<b>ER</b> = End + Redisplay. Grava a reserva e devolve o código localizador.`}
+  ];
+  return {
+    locator:randomLocator(),
+    brief:{pax:`${f.n} ${last}`, title:f.t, route:`${o[1]} (${o[0]}) → ${d[1]} (${d[0]})`, date:`${day} ${mon}`, cls, phone:`${city} ${num}`},
+    steps
+  };
+}
+function buildPnrDeck(n){
+  pnrScenarios=[]; let d=[];
+  for(let s=0;s<n;s++){
+    const scn=genPnr(); pnrScenarios.push(scn);
+    scn.steps.forEach((st,i)=>{
+      d.push({cat:`PNR ${s+1} · ${st.name}`, q:st.q, answer:st.answer, accept:st.accept, ex:st.ex, scn:s, stepIdx:i, stepName:st.name});
+    });
+  }
+  return d; // ordem NÃO é embaralhada: os passos precisam vir em sequência
+}
+
+// Exercícios fixos por módulo
+const STATIC = {
+  "Sessão":[
+    {q:"Faça o <b>login</b> (sign in) no Sabre.", answer:"SI", accept:["SI"], ex:"<b>SI</b> inicia a sessão de trabalho (sign in)."},
+    {q:"Encerre a sessão (<b>sign out</b>).", answer:"SO", accept:["SO"], ex:"<b>SO</b> faz o logoff do terminal."},
+    {q:"<b>Ignore</b> todas as alterações não salvas da tela atual.", answer:"I", accept:["I"], ex:"<b>I</b> (Ignore) descarta o trabalho não finalizado."},
+    {q:"Ignore as alterações <b>e reexiba</b> o PNR.", answer:"IR", accept:["IR"], ex:"<b>IR</b> = Ignore + Redisplay: descarta e mostra o PNR de novo."}
+  ],
+  "PNR (montar reserva)":[
+    {q:"Insira o <b>nome</b> da passageira: sobrenome <b>RAMOS</b>, nome <b>QUEILA</b>, tratamento <b>MS</b> (senhorita).",
+     answer:"-RAMOS/QUEILA MS", accept:["-RAMOS/QUEILA MS","-RAMOS/QUEILAMS"],
+     ex:"Campo de nome começa com <b>-</b> · formato <b>SOBRENOME/NOME TÍTULO</b>."},
+    {q:"Adicione o <b>telefone da agência</b> em São Paulo (GRU): número 555-1234 (tipo A = agência).",
+     answer:"9GRU555-1234-A", accept:["9GRU555-1234-A","9GRU 555-1234-A"],
+     ex:"Campo de telefone é o <b>9</b> · cidade + número + <b>-A</b> (Agency), <b>-H</b> (Home) ou <b>-B</b> (Business)."},
+    {q:"Registre que a solicitação foi <b>recebida do passageiro</b> (received from).",
+     answer:"6P", accept:["6P"], ex:"Campo <b>6</b> = Received from · <b>P</b> indica o próprio passageiro."},
+    {q:"Insira o <b>limite de emissão automático</b> (ticketing field / TAW).",
+     answer:"7TAW/", accept:["7TAW/","7TAW"], ex:"Campo <b>7</b> = ticketing · <b>TAW</b> = Ticket Automatically When (emite no prazo)."},
+    {q:"<b>Finalize</b> o PNR salvando e reexibindo na tela (end + redisplay).",
+     answer:"ER", accept:["ER"], ex:"<b>E</b> = End (salva) · <b>ER</b> = End + Redisplay (salva e reexibe). Gera o localizador."}
+  ],
+  "Recuperar / Visualizar":[
+    {q:"Abra o PNR cujo <b>localizador</b> é <b>ABCDEF</b>.", answer:"*ABCDEF", accept:["*ABCDEF"],
+     ex:"<b>*</b> seguido do código localizador (record locator) abre a reserva."},
+    {q:"Recupere o PNR pelo <b>sobrenome</b> RAMOS.", answer:"*-RAMOS", accept:["*-RAMOS"],
+     ex:"<b>*-</b> + sobrenome busca a reserva pelo nome quando você não tem o localizador."},
+    {q:"Exiba o <b>PNR completo</b> (todos os campos).", answer:"*A", accept:["*A"],
+     ex:"<b>*A</b> = display All do PNR aberto."},
+    {q:"Exiba apenas o <b>itinerário</b> do PNR atual.", answer:"*I", accept:["*I"],
+     ex:"<b>*I</b> mostra só os segmentos de voo (Itinerary)."},
+    {q:"Exiba apenas os campos de <b>telefone</b> do PNR.", answer:"*P9", accept:["*P9"],
+     ex:"<b>*P9</b> filtra e mostra os campos de telefone (campo 9)."}
+  ],
+  "Tarifação":[
+    {q:"<b>Tarife</b> o itinerário já armazenado no PNR.", answer:"WP", accept:["WP"],
+     ex:"<b>WP</b> (Will Price) cota a tarifa do itinerário vendido."},
+    {q:"Tarife usando a <b>disponibilidade/classe atual</b> dos voos.", answer:"WPNC", accept:["WPNC"],
+     ex:"<b>WPNC</b> = WP No Combinability / recota com as classes correntes."},
+    {q:"Exiba as <b>tarifas publicadas</b> de GRU para MIA (fare display).", answer:"FQGRUMIA", accept:["FQGRUMIA"],
+     ex:"<b>FQ</b> (Fare Quote display) + par de cidades mostra a tabela de tarifas."}
+  ],
+  "Encode / Decode":[
+    {q:"<b>Decodifique</b> (descubra o nome de) a companhia aérea de código <b>AA</b>.", answer:"W/*AA", accept:["W/*AA"],
+     ex:"<b>W/*</b> + código decodifica cia. aérea/cidade. AA = American Airlines."},
+    {q:"<b>Codifique</b> (encode) a cidade <b>Rio de Janeiro</b>.", answer:"W/-CCRIO DE JANEIRO", accept:["W/-CCRIO DE JANEIRO"],
+     ex:"<b>W/-CC</b> + nome retorna o código IATA da cidade."}
+  ],
+  "Filas (Queues)":[
+    {q:"Mostre a <b>contagem de filas</b> (quantos PNRs aguardam em cada fila).", answer:"QC", accept:["QC"],
+     ex:"<b>QC</b> = Queue Count: visão geral do que está pendente."},
+    {q:"<b>Acesse</b> a fila de número <b>1</b> para começar a trabalhá-la.", answer:"Q/1", accept:["Q/1"],
+     ex:"<b>Q/</b> + número entra na fila para processar os PNRs."}
+  ],
+  "Serviços especiais (SSR)":[
+    {q:"Solicite <b>refeição vegetariana</b> (código VGML) no <b>segmento 1</b>.", answer:"3VGML1", accept:["3VGML1"],
+     ex:"Campo <b>3</b> = SSR · <b>VGML</b> é o código IATA de refeição vegetariana · <b>1</b> = segmento."},
+    {q:"Solicite <b>cadeira de rodas</b> até a aeronave (código WCHR), <b>segmento 1</b>.", answer:"3WCHR1", accept:["3WCHR1"],
+     ex:"<b>WCHR</b> = wheelchair to ramp. Variações: <b>WCHS</b> (até a escada), <b>WCHC</b> (até a poltrona)."},
+    {q:"Solicite <b>refeição infantil/bebê</b> (código BBML) no <b>segmento 1</b>.", answer:"3BBML1", accept:["3BBML1"],
+     ex:"<b>BBML</b> = baby meal. Outras: <b>CHML</b> (criança), <b>KSML</b> (kosher), <b>DBML</b> (diabético)."},
+    {q:"Informe <b>menor desacompanhado</b> (código UMNR) no <b>segmento 1</b>.", answer:"3UMNR1", accept:["3UMNR1"],
+     ex:"<b>UMNR</b> = unaccompanied minor. Exige idade e documentação adicional conforme a cia."}
+  ],
+  "Observações (Remarks / OSI)":[
+    {q:"Adicione uma <b>observação geral livre</b> no PNR: <b>DOCUMENTO ENVIADO</b>.", answer:"5DOCUMENTO ENVIADO", accept:["5DOCUMENTO ENVIADO"],
+     ex:"Campo <b>5</b> = remarks (observações internas da agência, não vão para a cia aérea)."},
+    {q:"Envie à <b>American (AA)</b> a informação de que o passageiro é <b>VIP</b> (mensagem OSI).", answer:"3OSI AA VIP", accept:["3OSI AA VIP"],
+     ex:"<b>3OSI</b> + código da cia + texto livre. OSI = Other Service Information (vai para a companhia)."}
+  ],
+  "Histórico e divisão":[
+    {q:"Exiba o <b>histórico</b> de alterações do PNR.", answer:"*H", accept:["*H"],
+     ex:"<b>*H</b> mostra o history: quem alterou o quê e quando."},
+    {q:"<b>Divida</b> (separe) o <b>passageiro 1</b> em uma nova reserva.", answer:"D1", accept:["D1"],
+     ex:"<b>D</b> + número do passageiro inicia a divisão (divide). Depois confirme com <b>F</b> e finalize ambos os PNRs."}
+  ]
+};
+
+// Definição dos módulos (ordem do fluxo de trabalho real)
+const MODULES = [
+  {id:"Sessão", label:"Sessão (login/logout)", type:"static"},
+  {id:"Disponibilidade", label:"Disponibilidade de voos", type:"gen", gen:genAvailability, n:6},
+  {id:"Venda", label:"Venda de assentos", type:"gen", gen:genSell, n:6},
+  {id:"PNR (montar reserva)", label:"PNR (montar reserva)", type:"static"},
+  {id:"Recuperar / Visualizar", label:"Recuperar / Visualizar", type:"static"},
+  {id:"Tarifação", label:"Tarifação", type:"static"},
+  {id:"Assentos", label:"Assentos (seat map)", type:"gen", gen:genSeat, n:5},
+  {id:"Serviços especiais (SSR)", label:"Serviços especiais (SSR)", type:"static"},
+  {id:"Observações (Remarks / OSI)", label:"Observações (Remarks / OSI)", type:"static"},
+  {id:"Itinerário · modificar", label:"Itinerário (cancelar/alterar)", type:"gen", gen:genCancel, n:5},
+  {id:"Encode / Decode", label:"Encode / Decode", type:"static"},
+  {id:"Filas (Queues)", label:"Filas (Queues)", type:"static"},
+  {id:"Histórico e divisão", label:"Histórico e divisão", type:"static"}
+];
+
+/* ============================ ESTADO ============================ */
+let MODE = "practice";
+let deck = [], idx = 0, score = 0, tot = 0, streak = 0, best = 0, answered = false;
+let pnrScenarios = [];
+let modStats = {};   // { grupo: {ok, tot} } para o placar por módulo
+
+/* ============================ SETUP UI ============================ */
+const $ = s => document.querySelector(s);
+const modsEl = $("#mods");
+MODULES.forEach((m,i)=>{
+  const count = m.type==="gen" ? m.n : STATIC[m.id].length;
+  const el = document.createElement("label");
+  el.className="mod";
+  el.innerHTML = `<input type="checkbox" value="${m.id}" ${i<4?"checked":""}>
+    <span>${m.label}</span><span class="cnt">${count}</span>`;
+  modsEl.appendChild(el);
+});
+
+document.querySelectorAll(".seg").forEach(s=>{
+  s.addEventListener("click",()=>{
+    document.querySelectorAll(".seg").forEach(x=>x.classList.remove("on"));
+    s.classList.add("on"); MODE = s.dataset.mode;
+    $("#pnrNote").classList.toggle("hidden", MODE!=="pnr");
+    $("#mods").style.opacity = (MODE==="pnr") ? .4 : 1;
+  });
+});
+
+function buildDeck(){
+  const chosen = [...document.querySelectorAll("#mods input:checked")].map(c=>c.value);
+  let d = [];
+  MODULES.forEach(m=>{
+    if(!chosen.includes(m.id)) return;
+    if(m.type==="gen"){ for(let i=0;i<m.n;i++){ const it=m.gen(); it.cat=m.id; d.push(it);} }
+    else STATIC[m.id].forEach(it=>d.push({...it, cat:m.id}));
+  });
+  for(let i=d.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
+  return d;
+}
+
+$("#start").addEventListener("click",start);
+$("#again").addEventListener("click",()=>{ show("setup"); });
+
+function start(){
+  deck = (MODE==="pnr") ? buildPnrDeck(3) : buildDeck();
+  if(!deck.length){ alert("Selecione ao menos um módulo."); return; }
+  idx=0; score=0; tot=0; streak=0; best=0; modStats={};
+  const typed = (MODE!=="flash");           // praticar e PNR usam entrada digitada
+  $("#practiceUI").classList.toggle("hidden", !typed);
+  $("#flashUI").classList.toggle("hidden", typed);
+  show("play"); render();
+}
+
+/* ============================ NAVEGAÇÃO TELAS ============================ */
+function show(id){
+  ["setup","play","done"].forEach(s=>$("#"+s).classList.toggle("hidden", s!==id));
+}
+
+/* ============================ NORMALIZAÇÃO / CHECAGEM ============================ */
+function norm(s){
+  return s.toUpperCase().trim().replace(/\s+/g," ");
+}
+function isCorrect(input, item){
+  const n = norm(input);
+  return item.accept.some(a => norm(a)===n);
+}
+
+/* ============================ RENDER ============================ */
+function render(){
+  if(idx>=deck.length){ return finish(); }
+  const it = deck[idx];
+  answered=false;
+  $("#t-cat").textContent = it.cat;
+  $("#t-q").innerHTML = it.q;
+  $("#prog").style.width = (idx/deck.length*100)+"%";
+  $("#m-mod").textContent = `${idx+1} / ${deck.length}`;
+  updateStats();
+
+  const isPnr = (MODE==="pnr");
+  $("#pnrPanel").classList.toggle("hidden", !isPnr);
+  if(isPnr) renderPnr(it);
+
+  if(MODE!=="flash"){
+    $("#fb").className="fb"; $("#fb").innerHTML="";
+    const inp=$("#answer"); inp.value=""; inp.disabled=false; inp.focus();
+    $("#check").textContent="Verificar ⏎";
+  }else{
+    $("#reveal").classList.remove("show");
+    $("#flashBtns1").classList.remove("hidden");
+    $("#flashBtns2").classList.add("hidden");
+  }
+}
+
+function updateStats(){
+  $("#m-score").textContent=score;
+  $("#m-tot").textContent=tot;
+  $("#m-streak").textContent=streak;
+  $("#m-best").textContent=best;
+  $("#m-acc").textContent=(tot? Math.round(score/tot*100):100)+"%";
+}
+
+// agrupa por etapa no modo PNR, por módulo nos demais
+function groupOf(it){ return (MODE==="pnr") ? it.stepName : it.cat; }
+function recordStat(g, ok){
+  if(!modStats[g]) modStats[g]={ok:0,tot:0};
+  modStats[g].tot++; if(ok) modStats[g].ok++;
+}
+
+function renderPnr(it){
+  const scn=pnrScenarios[it.scn], b=scn.brief;
+  $("#pnr-num").textContent=(it.scn+1)+" / "+pnrScenarios.length;
+  $("#pnr-brief").innerHTML=
+    `<div><span>Passageiro</span>${b.pax} (${b.title})</div>`+
+    `<div><span>Trecho</span>${b.route}</div>`+
+    `<div><span>Data</span>${b.date}</div>`+
+    `<div><span>Classe</span>${b.cls}</div>`+
+    `<div><span>Telefone</span>${b.phone}</div>`;
+  $("#pnr-steps").innerHTML=scn.steps.map((st,i)=>{
+    let cls="chip", mark="○";
+    if(i<it.stepIdx){ cls+=" done"; mark="✓"; }
+    else if(i===it.stepIdx){ cls+=" cur"; mark="▶"; }
+    return `<span class="${cls}">${mark} ${st.name}</span>`;
+  }).join("");
+}
+
+/* ============================ MODO PRATICAR ============================ */
+$("#check").addEventListener("click",submitOrNext);
+$("#skip").addEventListener("click",()=>{ if(answered){next();} else { answered=true; tot++; streak=0; recordStat(groupOf(deck[idx]),false); reveal(false,"(pulado)"); $("#check").textContent="Próximo ⏎";} });
+$("#hint").addEventListener("click",()=>{
+  const it=deck[idx]; const a=it.answer;
+  const shown=a.slice(0,Math.max(1,Math.ceil(a.length/3)));
+  $("#fb").className="fb ok";
+  $("#fb").innerHTML=`<div class="head">💡 Dica</div>Começa com <code>${shown}…</code> &nbsp;(${a.length} caracteres)`;
+  $("#answer").focus();
+});
+$("#answer").addEventListener("keydown",e=>{ if(e.key==="Enter") submitOrNext(); });
+
+function submitOrNext(){
+  if(answered){ next(); return; }
+  const it=deck[idx]; const val=$("#answer").value;
+  if(!val.trim()) return;
+  answered=true; tot++;
+  const ok=isCorrect(val,it);
+  if(ok){ score++; streak++; best=Math.max(best,streak); } else { streak=0; }
+  recordStat(groupOf(it), ok);
+  reveal(ok);
+  $("#answer").disabled=true;
+  $("#check").textContent="Próximo ⏎";
+  updateStats();
+}
+
+function reveal(ok, note){
+  const it=deck[idx];
+  const fb=$("#fb");
+  fb.className="fb "+(ok?"ok":"no");
+  let extra="";
+  if(MODE==="pnr" && ok && it.stepName==="Finalizar"){
+    extra=`<div class="locator">🎉 PNR criado com sucesso! Localizador: <code>${pnrScenarios[it.scn].locator}</code></div>`;
+  }
+  fb.innerHTML = ok
+    ? `<div class="head">✅ Correto!</div>Comando: <code>${it.answer}</code><div class="ex">${it.ex}</div>${extra}`
+    : `<div class="head">❌ Incorreto ${note?note:""}</div>Resposta certa: <code>${it.answer}</code><div class="ex">${it.ex}</div>`;
+}
+
+/* ============================ MODO FLASHCARD ============================ */
+$("#revealBtn").addEventListener("click",()=>{
+  const it=deck[idx];
+  $("#r-ans").textContent=it.answer;
+  $("#r-ex").innerHTML=it.ex;
+  $("#reveal").classList.add("show");
+  $("#flashBtns1").classList.add("hidden");
+  $("#flashBtns2").classList.remove("hidden");
+});
+$("#hit").addEventListener("click",()=>{ tot++; score++; streak++; best=Math.max(best,streak); recordStat(groupOf(deck[idx]),true); updateStats(); next(); });
+$("#miss").addEventListener("click",()=>{ tot++; streak=0; recordStat(groupOf(deck[idx]),false); updateStats(); next(); });
+
+/* ============================ AVANÇAR / FINALIZAR ============================ */
+function next(){ idx++; render(); }
+
+function finish(){
+  $("#prog").style.width="100%";
+  const acc = tot? Math.round(score/tot*100):0;
+  $("#e-acc").textContent=acc+"%";
+  let msg;
+  if(acc>=90) msg="Excelente! Nível de operação real. 🚀";
+  else if(acc>=70) msg="Bom ritmo. Repita os módulos que mais errou.";
+  else msg="Continue treinando, repetição é tudo no GDS.";
+  $("#e-sub").innerHTML=`${score} de ${tot} corretos · maior sequência: ${best}<br>${msg}`;
+
+  // placar por módulo, do mais fraco ao mais forte
+  const rows = Object.keys(modStats).map(k=>{
+    const s=modStats[k]; return {k, ok:s.ok, tot:s.tot, a:Math.round(s.ok/s.tot*100)};
+  }).sort((x,y)=> x.a-y.a || y.tot-x.tot);
+
+  const title = (MODE==="pnr") ? "Desempenho por etapa do PNR" : "Desempenho por módulo";
+  let html = `<div class="brk-title">${title} · do mais fraco ao mais forte</div>`;
+  html += rows.map(r=>{
+    const col = r.a>=80 ? "var(--green)" : r.a>=50 ? "var(--amber)" : "var(--red)";
+    return `<div class="brk-row">
+      <div class="brk-name">${r.k}</div>
+      <div class="brk-bar"><i style="width:${r.a}%;background:${col}"></i></div>
+      <div class="brk-val">${r.ok}/${r.tot} · ${r.a}%</div>
+    </div>`;
+  }).join("");
+  const fracos = rows.filter(r=>r.a<70).map(r=>r.k);
+  if(fracos.length) html += `<div class="brk-tip">⚠️ Foque em: ${fracos.join(", ")}.</div>`;
+  $("#e-breakdown").innerHTML = html;
+
+  show("done");
+}
+
+/* ============================ ATALHOS ============================ */
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") show("setup"); });
+</script>
+</body>
+</html>
