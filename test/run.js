@@ -107,6 +107,25 @@ function load(url) {
   ok(Object.keys(data.states).length === 0, "PNR não alimenta SRS por skill");
 })();
 
+/* ---- 4b. Modo Revisão: itens novos acertados contam como "subiram de caixa" ---- */
+(function reviewSummary() {
+  const w = load("http://localhost/index.html"), d = w.document;
+  d.querySelector('.seg[data-mode="review"]').click();
+  d.getElementById("start").click();
+  const n = w.eval("deck.length");
+  ok(n === 30, "deck de revisão de usuário novo tem 30 (" + n + ")");
+  for (let i = 0; i < n; i++) {
+    const a = w.eval("deck[idx].answer");
+    d.getElementById("answer").value = a;
+    d.getElementById("check").click(); // verifica (acerto)
+    d.getElementById("check").click(); // avança
+  }
+  const srs = d.getElementById("e-srs");
+  ok(!srs.classList.contains("hidden"), "linha-resumo da revisão aparece");
+  ok(/^30 subiram de caixa · 0 voltaram/.test(srs.textContent),
+    "30 itens novos acertados contam como subida (" + srs.textContent + ")");
+})();
+
 /* ---- 5. Limpar progresso zera tudo ---- */
 (function clearProgress() {
   const w = load("http://localhost/index.html"), d = w.document;

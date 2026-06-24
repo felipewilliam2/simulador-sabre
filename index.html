@@ -597,7 +597,8 @@ function recordSkill(skillId, ok){
   const prev = srsData.states[skillId];
   const next = SRS.srsNext(prev, ok, now);
   srsData.states[skillId] = next;
-  if(prev && next.box > prev.box) sessBoxUp++;
+  const prevBox = prev ? prev.box : 1;   // item novo começa implicitamente na caixa 1
+  if(next.box > prevBox) sessBoxUp++;
   if(prev && !ok && prev.box > 1) sessBoxReset++;
   saveSRS();
 }
