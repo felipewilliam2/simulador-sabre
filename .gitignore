@@ -10,5 +10,8 @@
 .idea/
 *.swp
 
+# Dependências de teste (Node)
+node_modules/
+
 # Logs
 *.log

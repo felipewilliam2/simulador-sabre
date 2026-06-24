@@ -1,0 +1,13 @@
+{
+  "name": "simulador-sabre",
+  "version": "1.0.0",
+  "description": "Testes de CI do Simulador Sabre. O app em si (index.html) continua single-file e sem dependências de runtime — jsdom é usado apenas para testar.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}
