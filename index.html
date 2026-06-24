@@ -483,15 +483,15 @@ const STATIC = {
 // Definição dos módulos (ordem do fluxo de trabalho real)
 const MODULES = [
   {id:"Sessão", label:"Sessão (login/logout)", type:"static"},
-  {id:"Disponibilidade", label:"Disponibilidade de voos", type:"gen", gen:genAvailability, n:6},
-  {id:"Venda", label:"Venda de assentos", type:"gen", gen:genSell, n:6},
+  {id:"Disponibilidade", label:"Disponibilidade de voos", type:"gen", gen:genAvailability, n:6, skill:"availability"},
+  {id:"Venda", label:"Venda de assentos", type:"gen", gen:genSell, n:6, skill:"sell"},
   {id:"PNR (montar reserva)", label:"PNR (montar reserva)", type:"static"},
   {id:"Recuperar / Visualizar", label:"Recuperar / Visualizar", type:"static"},
   {id:"Tarifação", label:"Tarifação", type:"static"},
-  {id:"Assentos", label:"Assentos (seat map)", type:"gen", gen:genSeat, n:5},
+  {id:"Assentos", label:"Assentos (seat map)", type:"gen", gen:genSeat, n:5, skill:"seat"},
   {id:"Serviços especiais (SSR)", label:"Serviços especiais (SSR)", type:"static"},
   {id:"Observações (Remarks / OSI)", label:"Observações (Remarks / OSI)", type:"static"},
-  {id:"Itinerário · modificar", label:"Itinerário (cancelar/alterar)", type:"gen", gen:genCancel, n:5},
+  {id:"Itinerário · modificar", label:"Itinerário (cancelar/alterar)", type:"gen", gen:genCancel, n:5, skill:"cancel"},
   {id:"Encode / Decode", label:"Encode / Decode", type:"static"},
   {id:"Filas (Queues)", label:"Filas (Queues)", type:"static"},
   {id:"Histórico e divisão", label:"Histórico e divisão", type:"static"}
@@ -537,6 +537,13 @@ const SRS = (function(){
   }
   return { BOXES, INTERVALS, DAY_MS, isDue, srsNext, dayKey, nextDayKey, updateStreak, buildReviewDeck };
 })();
+
+/* ============================ CATÁLOGO DE SKILLS ============================ */
+const SKILLS = [];
+MODULES.forEach(m=>{
+  if(m.type==="gen") SKILLS.push({id:"g:"+m.skill, module:m.id, type:"gen", gen:m.gen, skill:m.skill});
+  else STATIC[m.id].forEach(it=> SKILLS.push({id:"s:"+m.id+":"+it.answer, module:m.id, type:"static", item:it}));
+});
 
 /* ============================ ESTADO ============================ */
 let MODE = "practice";
