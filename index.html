@@ -619,6 +619,13 @@ modsEl.addEventListener("change",()=>$("#noMods").classList.add("hidden"));
 $("#selAll").addEventListener("click",()=>{ document.querySelectorAll("#mods input").forEach(c=>c.checked=true); $("#noMods").classList.add("hidden"); });
 $("#selNone").addEventListener("click",()=>{ document.querySelectorAll("#mods input").forEach(c=>c.checked=false); });
 
+// painel "Seu progresso"
+$("#progressLink").addEventListener("click",()=>{ renderProgress(); $("#clearConfirm").classList.add("hidden"); $("#progressPanel").classList.remove("hidden"); $("#progressClose").focus(); });
+$("#progressClose").addEventListener("click",()=>$("#progressPanel").classList.add("hidden"));
+$("#clearProgress").addEventListener("click",()=>{ $("#clearConfirm").classList.remove("hidden"); $("#clearStay").focus(); });
+$("#clearStay").addEventListener("click",()=>{ $("#clearConfirm").classList.add("hidden"); $("#clearProgress").focus(); });
+$("#clearLeave").addEventListener("click",()=>{ srsData=emptySrs(); saveSRS(); $("#clearConfirm").classList.add("hidden"); renderProgress(); refreshSrsUI(); });
+
 // dica de primeira-vez (mostrada só até o usuário iniciar um treino ou dispensar)
 const ONBOARD_KEY="sabre-onboarded";
 function isOnboarded(){ try{ return localStorage.getItem(ONBOARD_KEY)==="1"; }catch(e){ return false; } }
@@ -673,6 +680,39 @@ function refreshSrsUI(){
   } else {
     $("#start").textContent = "INICIAR TREINO";
   }
+}
+function skillLabel(sk){
+  if(sk.type==="gen") return ({availability:"Disponibilidade",sell:"Venda",seat:"Mapa de assentos",cancel:"Cancelar segmento"})[sk.skill] || sk.module;
+  return sk.item.answer;
+}
+function renderProgress(){
+  const states=srsData.states;
+  const boxes=[0,0,0,0,0]; let totalSeen=0;
+  SKILLS.forEach(sk=>{ const st=states[sk.id]; if(st){ boxes[st.box-1]++; totalSeen+=st.seen; } });
+  const unseen = SKILLS.length - boxes.reduce((a,b)=>a+b,0);
+  let html = `<div class="brk-title">Distribuição por caixa (Leitner)</div>`;
+  boxes.forEach((c,i)=>{
+    const w=Math.round(c/SKILLS.length*100);
+    html += `<div class="brk-row"><div class="brk-name">Caixa ${i+1}</div>`+
+      `<div class="brk-bar"><i style="width:${w}%;background:var(--green-dim)"></i></div>`+
+      `<div class="brk-val">${c} cmd</div></div>`;
+  });
+  html += `<div class="brk-row"><div class="brk-name">Nunca vistos</div>`+
+    `<div class="brk-bar"><i style="width:${Math.round(unseen/SKILLS.length*100)}%;background:var(--line)"></i></div>`+
+    `<div class="brk-val">${unseen} cmd</div></div>`;
+  const weak = SKILLS.map(sk=>({sk, st:states[sk.id]}))
+    .filter(x=>x.st && x.st.seen>=1)
+    .map(x=>({label:skillLabel(x.sk), acc:Math.round(x.st.correct/x.st.seen*100), seen:x.st.seen}))
+    .sort((a,b)=> a.acc-b.acc || b.seen-a.seen).slice(0,5);
+  if(weak.length){
+    html += `<div class="brk-title" style="margin-top:14px">Comandos mais fracos</div>`;
+    html += weak.map(w=>{ const col=w.acc>=80?"var(--green)":w.acc>=50?"var(--amber)":"var(--red)";
+      return `<div class="brk-row"><div class="brk-name">${w.label}</div>`+
+        `<div class="brk-bar"><i style="width:${w.acc}%;background:${col}"></i></div>`+
+        `<div class="brk-val">${w.acc}%</div></div>`; }).join("");
+  }
+  html += `<div class="brk-tip">Sequência: ${srsData.dayStreak.count} dia(s) · total praticado: ${totalSeen} resposta(s).</div>`;
+  $("#progressBody").innerHTML=html;
 }
 
 $("#start").addEventListener("click",start);
