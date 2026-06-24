@@ -616,9 +616,12 @@ document.querySelectorAll(".seg").forEach(s=>{
     s.classList.add("on"); s.setAttribute("aria-pressed","true"); MODE = s.dataset.mode;
     $("#noMods").classList.add("hidden");
     $("#pnrNote").classList.toggle("hidden", MODE!=="pnr");
-    $("#mods").style.opacity = (MODE==="pnr") ? .4 : 1;
+    $("#reviewNote").classList.toggle("hidden", MODE!=="review");
+    $("#mods").style.opacity = (MODE==="pnr" || MODE==="review") ? .4 : 1;
+    refreshSrsUI();
   });
 });
+refreshSrsUI();
 
 function buildDeck(){
   const chosen = [...document.querySelectorAll("#mods input:checked")].map(c=>c.value);
@@ -632,11 +635,36 @@ function buildDeck(){
   return d;
 }
 
+function buildReviewSessionDeck(){
+  const picked = SRS.buildReviewDeck(SKILLS, srsData.states, Date.now(), 30);
+  return picked.map(sk=>{
+    if(sk.type==="gen"){ const it=sk.gen(); it.cat=sk.module; it.skillId=sk.id; return it; }
+    return {...sk.item, cat:sk.module, skillId:sk.id};
+  });
+}
+function dueCount(){ const now=Date.now(); return SKILLS.filter(sk=>SRS.isDue(srsData.states[sk.id], now)).length; }
+function hasSrsHistory(){ return srsData.history.length>0 || Object.keys(srsData.states).length>0; }
+function refreshSrsUI(){
+  const has = hasSrsHistory();
+  $("#srsBar").classList.toggle("hidden", !has);
+  if(has){
+    const n = dueCount();
+    $("#srsSummary").innerHTML = `» <b style="color:var(--amber)">${n}</b> comando(s) para revisar hoje · sequência: <b>${srsData.dayStreak.count}</b> dia(s)`;
+  }
+  if(MODE==="review"){
+    const n = dueCount();
+    $("#start").textContent = n>0 ? `REVISAR (${n} VENCIDOS)` : "TUDO EM DIA ✓ — REVISAR MESMO ASSIM";
+  } else {
+    $("#start").textContent = "INICIAR TREINO";
+  }
+}
+
 $("#start").addEventListener("click",start);
 $("#again").addEventListener("click",()=>{ show("setup"); });
 
 function start(){
-  deck = (MODE==="pnr") ? buildPnrDeck(3) : buildDeck();
+  if(MODE==="review") deck = buildReviewSessionDeck();
+  else deck = (MODE==="pnr") ? buildPnrDeck(3) : buildDeck();
   if(!deck.length){ $("#noMods").classList.remove("hidden"); $("#start").focus(); return; }
   $("#noMods").classList.add("hidden");
   setOnboarded();
@@ -652,7 +680,7 @@ function start(){
 function show(id){
   ["setup","play","done"].forEach(s=>$("#"+s).classList.toggle("hidden", s!==id));
   $("#exitConfirm").classList.add("hidden");
-  if(id==="setup") $("#start").focus();
+  if(id==="setup"){ $("#start").focus(); refreshSrsUI(); }
   else if(id==="done") $("#again").focus();
 }
 
@@ -813,6 +841,11 @@ function finish(){
   srsData.history.push({day:today, mode:MODE, total:tot, correct:score, byModule:JSON.parse(JSON.stringify(modStats))});
   if(srsData.history.length>60) srsData.history = srsData.history.slice(-60);
   saveSRS();
+
+  if(MODE==="review"){
+    $("#e-srs").classList.remove("hidden");
+    $("#e-srs").innerHTML = `${sessBoxUp} subiram de caixa · ${sessBoxReset} voltaram à caixa 1 · próxima revisão: amanhã`;
+  } else $("#e-srs").classList.add("hidden");
 
   show("done");
 }
