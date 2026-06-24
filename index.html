@@ -497,6 +497,47 @@ const MODULES = [
   {id:"Histórico e divisão", label:"Histórico e divisão", type:"static"}
 ];
 
+/* ============================ SRS (Leitner) — funções puras ============================ */
+const SRS = (function(){
+  const BOXES=5, INTERVALS=[1,2,4,8,15], DAY_MS=86400000;
+  function isDue(state, now){ return !state || state.due<=now; }
+  function srsNext(state, ok, now){
+    const box = state ? state.box : 1;
+    const nbox = ok ? Math.min(box+1, BOXES) : 1;
+    return {
+      box: nbox,
+      due: now + INTERVALS[nbox-1]*DAY_MS,
+      seen: (state? state.seen:0) + 1,
+      correct: (state? state.correct:0) + (ok?1:0),
+      lastResult: ok ? "ok" : "no",
+      lastSeen: now
+    };
+  }
+  function dayKey(ts){ const d=new Date(ts), p=n=>String(n).padStart(2,"0");
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+  function nextDayKey(key){ const [y,m,d]=key.split("-").map(Number);
+    return dayKey(new Date(y, m-1, d+1).getTime()); }
+  function updateStreak(streak, today){
+    if(!streak || !streak.lastDay) return {count:1, lastDay:today};
+    if(streak.lastDay===today) return {count:streak.count, lastDay:today};
+    if(nextDayKey(streak.lastDay)===today) return {count:streak.count+1, lastDay:today};
+    return {count:1, lastDay:today};
+  }
+  function buildReviewDeck(catalog, states, now, cap){
+    const seenDue=[], unseen=[], notDue=[];
+    catalog.forEach(sk=>{
+      const s=states[sk.id];
+      if(!s) unseen.push(sk);
+      else if(s.due<=now) seenDue.push(sk);
+      else notDue.push(sk);
+    });
+    seenDue.sort((a,b)=>{ const sa=states[a.id], sb=states[b.id]; return sa.box-sb.box || sa.due-sb.due; });
+    notDue.sort((a,b)=> states[a.id].box - states[b.id].box);
+    return seenDue.concat(unseen, notDue).slice(0, cap);
+  }
+  return { BOXES, INTERVALS, DAY_MS, isDue, srsNext, dayKey, nextDayKey, updateStreak, buildReviewDeck };
+})();
+
 /* ============================ ESTADO ============================ */
 let MODE = "practice";
 let deck = [], idx = 0, score = 0, tot = 0, streak = 0, best = 0, answered = false;
@@ -753,6 +794,57 @@ document.addEventListener("keydown",e=>{
     e.preventDefault(); submitOrNext();
   }
 });
+
+/* ============================ AUTO-TESTE (?selftest=1) ============================ */
+function runSelfTest(){
+  let pass=0, fail=0; const fails=[];
+  const ok=(cond,msg)=>{ if(cond){pass++;} else {fail++; fails.push(msg); console.error("FAIL:",msg);} };
+  const eq=(a,b,msg)=>ok(JSON.stringify(a)===JSON.stringify(b), msg+" (got "+JSON.stringify(a)+", want "+JSON.stringify(b)+")");
+  const NOW=1000000000000, D=SRS.DAY_MS;
+
+  // 1. acerto sobe caixa, teto em 5, due cresce conforme INTERVALS
+  let s=SRS.srsNext(null,true,NOW);
+  eq(s.box,2,"novo acerto vai para caixa 2");
+  eq(s.due,NOW+SRS.INTERVALS[1]*D,"due da caixa 2 = +2 dias");
+  let t=s; for(let i=0;i<10;i++) t=SRS.srsNext(t,true,NOW);
+  eq(t.box,5,"teto de caixa em 5");
+
+  // 2. erro volta para caixa 1 e due = +1 dia
+  let e=SRS.srsNext(t,false,NOW);
+  eq(e.box,1,"erro volta para caixa 1");
+  eq(e.due,NOW+SRS.INTERVALS[0]*D,"due pos-erro = +1 dia");
+
+  // 3. isDue
+  ok(SRS.isDue(null,NOW),"nunca-visto e vencido");
+  ok(!SRS.isDue({box:1,due:NOW+D},NOW),"due futuro nao vencido");
+  ok(SRS.isDue({box:1,due:NOW-1},NOW),"due passado vencido");
+
+  // 4. buildReviewDeck: vencidos por caixa asc, completa com unseen, respeita cap
+  const cat=[{id:"a"},{id:"b"},{id:"c"},{id:"d"}];
+  const st={ a:{box:3,due:NOW-1}, b:{box:1,due:NOW-1}, d:{box:2,due:NOW+D} };
+  eq(SRS.buildReviewDeck(cat,st,NOW,10).map(x=>x.id),["b","a","c","d"],"ordem: box1 vencido, box3 vencido, unseen, nao-vencido");
+  eq(SRS.buildReviewDeck(cat,st,NOW,2).length,2,"respeita o cap");
+
+  // 5. updateStreak
+  eq(SRS.updateStreak({count:3,lastDay:"2026-06-23"},"2026-06-23"),{count:3,lastDay:"2026-06-23"},"mesmo dia inalterado");
+  eq(SRS.updateStreak({count:3,lastDay:"2026-06-22"},"2026-06-23"),{count:4,lastDay:"2026-06-23"},"dia seguinte incrementa");
+  eq(SRS.updateStreak({count:3,lastDay:"2026-06-20"},"2026-06-23"),{count:1,lastDay:"2026-06-23"},"lacuna reseta para 1");
+  eq(SRS.updateStreak(null,"2026-06-23"),{count:1,lastDay:"2026-06-23"},"streak inicial");
+
+  // 6. dayKey estável no mesmo dia local
+  eq(SRS.dayKey(NOW),SRS.dayKey(NOW+1000),"dayKey estavel em ts proximos");
+
+  // 7. catálogo com 33 skills (validado a partir do Chunk 2)
+  if(typeof SKILLS!=="undefined") eq(SKILLS.length,33,"catalogo com 33 skills");
+
+  const summary="SELFTEST: "+pass+" passed, "+fail+" failed";
+  console.log(summary);
+  const b=document.createElement("div");
+  b.style.cssText="position:fixed;top:0;left:0;right:0;z-index:9999;padding:8px;text-align:center;font:13px monospace;"+(fail?"background:#1a0a0a;color:#ff5d5d":"background:#0a1a0f;color:#3df57a");
+  b.textContent=summary+(fail?" — "+fails.join(" | "):" PASS");
+  document.body.appendChild(b);
+}
+if(new URLSearchParams(location.search).get("selftest")==="1") runSelfTest();
 </script>
 </body>
 </html>
