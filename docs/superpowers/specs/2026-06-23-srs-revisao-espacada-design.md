@@ -119,6 +119,8 @@ Reforço dentro da sessão: ao errar, além de cair para a caixa 1, o item é **
 
 Atualização do SRS também acontece nos modos **Praticar** e **Flashcard** (qualquer resposta a um item de catálogo avança a caixa daquele skill). O modo **PNR completo** grava uma entrada de `history`, mas **não** alimenta o SRS por skill na v1 (seus passos são comandos gerados contextualmente; mapeá-los a skills fica fora de escopo agora).
 
+**Quando o estado global é gravado:** o estado por skill (`states`) é persistido a cada resposta. A entrada de `history` e a atualização de `dayStreak` (via `updateStreak`) acontecem **uma vez por sessão concluída**, em `finish()`, em qualquer modo — inclusive PNR completo. Sair pelo meio (confirmação de saída) **não** grava `history` nem mexe no streak, mas os estados de skill já respondidos permanecem salvos.
+
 ## 7. Mudanças de UI (reaproveitando a estética)
 
 - **4º `seg` "Revisão"** ao lado de Praticar/Flashcard/PNR. Ao implementar, resolver a pendência do DESIGN.md de tornar os `.seg` **focáveis e operáveis por teclado** (Tab + Enter/Espaço; `aria-pressed` já existe no markup).
