@@ -550,6 +550,28 @@ let MODE = "practice";
 let deck = [], idx = 0, score = 0, tot = 0, streak = 0, best = 0, answered = false;
 let pnrScenarios = [];
 let modStats = {};   // { grupo: {ok, tot} } para o placar por módulo
+let sessBoxUp = 0, sessBoxReset = 0;   // para a linha-resumo da revisão
+
+/* ============================ PERSISTÊNCIA SRS ============================ */
+const SRS_KEY = "sabre-srs-v1";
+function emptySrs(){ return { version:1, states:{}, dayStreak:{count:0,lastDay:null}, history:[] }; }
+function loadSRS(){
+  try{ const raw=localStorage.getItem(SRS_KEY); if(raw){ const d=JSON.parse(raw); if(d && d.version===1) return d; } }catch(e){}
+  return emptySrs();
+}
+function saveSRS(){ try{ localStorage.setItem(SRS_KEY, JSON.stringify(srsData)); }catch(e){} }
+let srsData = loadSRS();
+
+function recordSkill(skillId, ok){
+  if(!skillId) return;
+  const now = Date.now();
+  const prev = srsData.states[skillId];
+  const next = SRS.srsNext(prev, ok, now);
+  srsData.states[skillId] = next;
+  if(prev && next.box > prev.box) sessBoxUp++;
+  if(prev && !ok && prev.box > 1) sessBoxReset++;
+  saveSRS();
+}
 
 /* ============================ SETUP UI ============================ */
 const $ = s => document.querySelector(s);
@@ -590,8 +612,8 @@ function buildDeck(){
   let d = [];
   MODULES.forEach(m=>{
     if(!chosen.includes(m.id)) return;
-    if(m.type==="gen"){ for(let i=0;i<m.n;i++){ const it=m.gen(); it.cat=m.id; d.push(it);} }
-    else STATIC[m.id].forEach(it=>d.push({...it, cat:m.id}));
+    if(m.type==="gen"){ for(let i=0;i<m.n;i++){ const it=m.gen(); it.cat=m.id; it.skillId="g:"+m.skill; d.push(it);} }
+    else STATIC[m.id].forEach(it=>d.push({...it, cat:m.id, skillId:"s:"+m.id+":"+it.answer}));
   });
   for(let i=d.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
   return d;
@@ -606,6 +628,7 @@ function start(){
   $("#noMods").classList.add("hidden");
   setOnboarded();
   idx=0; score=0; tot=0; streak=0; best=0; modStats={};
+  sessBoxUp=0; sessBoxReset=0;
   const typed = (MODE!=="flash");           // praticar e PNR usam entrada digitada
   $("#practiceUI").classList.toggle("hidden", !typed);
   $("#flashUI").classList.toggle("hidden", typed);
@@ -689,7 +712,7 @@ function renderPnr(it){
 
 /* ============================ MODO PRATICAR ============================ */
 $("#check").addEventListener("click",submitOrNext);
-$("#skip").addEventListener("click",()=>{ if(answered){next();} else { answered=true; tot++; streak=0; recordStat(groupOf(deck[idx]),false); reveal(false,"(pulado)"); $("#check").textContent="Próximo ⏎";} });
+$("#skip").addEventListener("click",()=>{ if(answered){next();} else { answered=true; tot++; streak=0; recordStat(groupOf(deck[idx]),false); recordSkill(deck[idx].skillId,false); reveal(false,"(pulado)"); $("#check").textContent="Próximo ⏎";} });
 $("#hint").addEventListener("click",()=>{
   const it=deck[idx]; const a=it.answer;
   const shown=a.slice(0,Math.max(1,Math.ceil(a.length/3)));
@@ -707,6 +730,7 @@ function submitOrNext(){
   const ok=isCorrect(val,it);
   if(ok){ score++; streak++; best=Math.max(best,streak); } else { streak=0; }
   recordStat(groupOf(it), ok);
+  recordSkill(it.skillId, ok);
   reveal(ok);
   $("#answer").disabled=true;
   $("#check").textContent="Próximo ⏎";
@@ -735,8 +759,8 @@ $("#revealBtn").addEventListener("click",()=>{
   $("#flashBtns1").classList.add("hidden");
   $("#flashBtns2").classList.remove("hidden");
 });
-$("#hit").addEventListener("click",()=>{ tot++; score++; streak++; best=Math.max(best,streak); recordStat(groupOf(deck[idx]),true); updateStats(); next(); });
-$("#miss").addEventListener("click",()=>{ tot++; streak=0; recordStat(groupOf(deck[idx]),false); updateStats(); next(); });
+$("#hit").addEventListener("click",()=>{ tot++; score++; streak++; best=Math.max(best,streak); recordStat(groupOf(deck[idx]),true); recordSkill(deck[idx].skillId,true); updateStats(); next(); });
+$("#miss").addEventListener("click",()=>{ tot++; streak=0; recordStat(groupOf(deck[idx]),false); recordSkill(deck[idx].skillId,false); updateStats(); next(); });
 
 /* ============================ AVANÇAR / FINALIZAR ============================ */
 function next(){ idx++; render(); }
@@ -769,6 +793,13 @@ function finish(){
   const fracos = rows.filter(r=>r.a<70).map(r=>r.k);
   if(fracos.length) html += `<div class="brk-tip">⚠️ Foque em: ${fracos.join(", ")}.</div>`;
   $("#e-breakdown").innerHTML = html;
+
+  // persiste a sessão: histórico + streak (uma vez por sessão concluída)
+  const today = SRS.dayKey(Date.now());
+  srsData.dayStreak = SRS.updateStreak(srsData.dayStreak, today);
+  srsData.history.push({day:today, mode:MODE, total:tot, correct:score, byModule:JSON.parse(JSON.stringify(modStats))});
+  if(srsData.history.length>60) srsData.history = srsData.history.slice(-60);
+  saveSRS();
 
   show("done");
 }
