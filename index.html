@@ -135,6 +135,8 @@
   .firstrun .fr-x{margin-left:auto; background:none; border:none; color:var(--muted); cursor:pointer;
     font:inherit; font-size:13px; line-height:1; padding:2px 4px; border-radius:5px}
   .firstrun .fr-x:hover{color:var(--green)}
+  .srsbar{display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin:-4px 0 12px; font-size:12px; color:var(--muted)}
+  .srsbar b{color:var(--green)}
   .modtools{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:8px; font-size:11px}
   .modtools .sep{color:var(--line)}
   .linkbtn{background:none; border:none; color:var(--muted); cursor:pointer; font:inherit;
@@ -171,6 +173,11 @@
       <h2>Configurar treino</h2>
       <p class="lead">Selecione os módulos e o modo. Disponibilidade e Venda geram exercícios novos a cada rodada (cidades, datas, classes e linhas sorteadas). É assim que você cria memória muscular de verdade.</p>
 
+      <div class="srsbar hidden" id="srsBar">
+        <span id="srsSummary"></span>
+        <button type="button" class="linkbtn" id="progressLink">ver progresso</button>
+      </div>
+
       <div class="firstrun hidden" id="firstrun">
         <div><b>Primeira vez?</b> A seleção abaixo já cobre o básico: tecle <b>INICIAR</b>. Ao errar um comando, o simulador mostra a resposta certa e explica cada caractere.</div>
         <button type="button" class="fr-x" id="frClose" aria-label="Dispensar dica">✕</button>
@@ -193,9 +200,14 @@
         <button type="button" class="seg" data-mode="pnr" aria-pressed="false">
           <b>📋  PNR completo</b><span>Monte reservas inteiras em sequência, como no teste de uma agência.</span>
         </button>
+        <button type="button" class="seg" data-mode="review" aria-pressed="false">
+          <b>🔁  Revisão</b><span>O sistema escolhe o que revisar: o que está vencido e o que você mais erra.</span>
+        </button>
       </div>
 
       <p class="lead hidden" id="pnrNote" style="margin-top:-8px; color:var(--amber)">No modo <b>PNR completo</b>, a seleção de módulos acima é ignorada. Você monta 3 reservas completas com passageiro, trecho, data e classe sorteados a cada rodada.</p>
+
+      <p class="lead hidden" id="reviewNote" style="margin-top:-8px; color:var(--amber)">No modo <b>Revisão</b>, a seleção de módulos é ignorada — o simulador monta a sessão com o que está vencido e o que você mais erra, em formato de digitação.</p>
 
       <p class="warn hidden" id="noMods" role="alert">⚠ Selecione ao menos um módulo para começar.</p>
       <button class="go" id="start">INICIAR TREINO</button>
@@ -268,6 +280,7 @@
         <h2>Treino concluído</h2>
         <div class="big" id="e-acc">100%</div>
         <div class="sub" id="e-sub"></div>
+        <div class="sub hidden" id="e-srs"></div>
         <div class="breakdown" id="e-breakdown"></div>
         <button class="go" id="again">NOVO TREINO</button>
       </div>
