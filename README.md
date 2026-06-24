@@ -6,11 +6,13 @@ Um simulador offline para treinar os comandos crípticos do **Sabre GDS**, o sis
 
 ## ✨ Funcionalidades
 
-- **3 modos de treino**
+- **4 modos de treino**
   - **Praticar** — você digita o comando; o sistema corrige e explica cada um.
   - **Flashcard** — vê a tarefa, tenta de cabeça e revela a resposta.
   - **PNR completo** — monta reservas inteiras em sequência (do voo ao localizador), como num teste prático de contratação.
+  - **Revisão** — repetição espaçada (sistema de caixas Leitner): o simulador escolhe o que mostrar a partir do que está vencido e do que você mais erra.
 - **Exercícios dinâmicos** — disponibilidade, venda, assentos e cancelamentos sorteiam cidades, datas, classes e segmentos a cada rodada. Você aprende o *padrão*, não a resposta decorada.
+- **Progresso persistido** — seu desempenho por comando fica salvo no navegador (`localStorage`). A tela "Seu progresso" mostra a distribuição por caixa, os comandos mais fracos e sua sequência de dias; dá para limpar tudo a qualquer momento.
 - **Placar por módulo** — ao final, mostra sua precisão em cada categoria, do ponto mais fraco ao mais forte, para você saber o que revisar.
 - **Ficha + checklist no modo PNR** — dados da reserva sempre visíveis e os 7 passos marcados conforme você acerta, com geração de localizador no final.
 - **Visual de terminal GDS** — estética monoespaçada para você se acostumar com a cara real do sistema.
@@ -64,7 +66,7 @@ HTML, CSS e JavaScript puro (vanilla), em um único arquivo. Sem frameworks, sem
 ## 🗺️ Próximos passos (ideias)
 
 - Versão Amadeus dos comandos, lado a lado.
-- Salvar histórico das sessões no navegador (localStorage) para acompanhar a evolução.
+- Curva de evolução no tempo (gráfico do histórico já salvo das sessões).
 - Exportar um cartão de referência imprimível com todos os comandos.
 
 ## 📄 Licença

@@ -60,7 +60,9 @@ Janela de terminal como casca de tudo.
 - **First-run hint (`.firstrun`):** dica de primeira-visita no setup, borda tracejada `--green-dim` (igual à `.task`), com botão `✕` de dispensar. Mostrada só até o usuário iniciar um treino ou dispensar (`localStorage: sabre-onboarded`). Termos-âncora em `--green`.
 - **Bulk-select (`.modtools` + `.linkbtn`):** "marcar todos / limpar" acima do grid de módulos. Botões-texto discretos em `--muted`, acendem para `--green` no hover.
 - **Module chip (`label.mod`):** checkbox + label + contador à direita. Hover acende borda `--green-dim`; `accent-color: --green` no checkbox.
-- **Mode segment (`.seg`):** cartão selecionável de modo. Estado `.on` = borda `--green` + fundo `#0d1a10`. *(Pendência de a11y: deve ser focável/operável por teclado.)*
+- **Mode segment (`.seg`):** cartão selecionável de modo (`<button>`, já focável/operável por teclado, com `:focus-visible` em `--green`). Estado `.on` = borda `--green` + fundo `#0d1a10`. Há 4 modos: Praticar, Flashcard, PNR completo e **Revisão** (🔁, dirigido pelo SRS).
+- **SRS bar (`.srsbar`):** linha sóbria no setup com o resumo de revisão (`» N comando(s) para revisar hoje · sequência: N dias`, número de vencidos em `--amber`) e o link "ver progresso". Só aparece quando há histórico.
+- **Progress panel (`.progress-panel`):** painel "Seu progresso" que reusa `.brk-row` para a distribuição por caixa (Leitner) e os comandos mais fracos, e a confirmação inline `.confirm` (âmbar) para "limpar progresso". Padrão de *recognition over recall* aplicado ao acompanhamento.
 - **Prompt input (`.prompt-line`):** prefixo `»` verde + input transparente em caixa escura `#060a06`. Texto em maiúsculas, tracking 1px. *(Pendência: precisa de estado de foco visível.)*
 - **Action row (`.row button`):** botões secundários com borda `--line`; `.primary` em `--green` sobre `#04140a`.
 - **Primary button (`button.go`):** bloco cheio `--green`, texto escuro, peso 700, full-width. Estado `:disabled` com `opacity:.4`.

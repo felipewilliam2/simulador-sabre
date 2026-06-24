@@ -120,6 +120,7 @@
   .brk-bar i{display:block; height:100%; border-radius:6px; transition:width .4s}
   .brk-val{flex:0 0 78px; text-align:right; font-size:12px; color:var(--muted)}
   .brk-tip{font-size:12px; color:var(--amber); margin-top:6px; line-height:1.5}
+  .progress-panel{border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px; background:var(--panel)}
 
   footer{margin-top:14px; color:var(--muted); font-size:11px; line-height:1.5; text-align:center}
   footer code{color:var(--green)}
@@ -135,6 +136,8 @@
   .firstrun .fr-x{margin-left:auto; background:none; border:none; color:var(--muted); cursor:pointer;
     font:inherit; font-size:13px; line-height:1; padding:2px 4px; border-radius:5px}
   .firstrun .fr-x:hover{color:var(--green)}
+  .srsbar{display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin:-4px 0 12px; font-size:12px; color:var(--muted)}
+  .srsbar b{color:var(--green)}
   .modtools{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:8px; font-size:11px}
   .modtools .sep{color:var(--line)}
   .linkbtn{background:none; border:none; color:var(--muted); cursor:pointer; font:inherit;
@@ -171,6 +174,11 @@
       <h2>Configurar treino</h2>
       <p class="lead">Selecione os módulos e o modo. Disponibilidade e Venda geram exercícios novos a cada rodada (cidades, datas, classes e linhas sorteadas). É assim que você cria memória muscular de verdade.</p>
 
+      <div class="srsbar hidden" id="srsBar">
+        <span id="srsSummary"></span>
+        <button type="button" class="linkbtn" id="progressLink">ver progresso</button>
+      </div>
+
       <div class="firstrun hidden" id="firstrun">
         <div><b>Primeira vez?</b> A seleção abaixo já cobre o básico: tecle <b>INICIAR</b>. Ao errar um comando, o simulador mostra a resposta certa e explica cada caractere.</div>
         <button type="button" class="fr-x" id="frClose" aria-label="Dispensar dica">✕</button>
@@ -193,9 +201,29 @@
         <button type="button" class="seg" data-mode="pnr" aria-pressed="false">
           <b>📋  PNR completo</b><span>Monte reservas inteiras em sequência, como no teste de uma agência.</span>
         </button>
+        <button type="button" class="seg" data-mode="review" aria-pressed="false">
+          <b>🔁  Revisão</b><span>O sistema escolhe o que revisar: o que está vencido e o que você mais erra.</span>
+        </button>
       </div>
 
       <p class="lead hidden" id="pnrNote" style="margin-top:-8px; color:var(--amber)">No modo <b>PNR completo</b>, a seleção de módulos acima é ignorada. Você monta 3 reservas completas com passageiro, trecho, data e classe sorteados a cada rodada.</p>
+
+      <p class="lead hidden" id="reviewNote" style="margin-top:-8px; color:var(--amber)">No modo <b>Revisão</b>, a seleção de módulos é ignorada — o simulador monta a sessão com o que está vencido e o que você mais erra, em formato de digitação.</p>
+
+      <div class="progress-panel hidden" id="progressPanel">
+        <div id="progressBody"></div>
+        <div class="confirm hidden" id="clearConfirm" role="alertdialog" aria-labelledby="clearMsg">
+          <span id="clearMsg" style="color:var(--amber)">Apagar todo o histórico e progresso? Não dá para desfazer.</span>
+          <div class="confirm-row">
+            <button type="button" class="primary" id="clearStay">Manter</button>
+            <button type="button" id="clearLeave">Apagar tudo</button>
+          </div>
+        </div>
+        <div class="row">
+          <button type="button" id="clearProgress">Limpar progresso</button>
+          <button type="button" id="progressClose">Fechar</button>
+        </div>
+      </div>
 
       <p class="warn hidden" id="noMods" role="alert">⚠ Selecione ao menos um módulo para começar.</p>
       <button class="go" id="start">INICIAR TREINO</button>
@@ -268,6 +296,7 @@
         <h2>Treino concluído</h2>
         <div class="big" id="e-acc">100%</div>
         <div class="sub" id="e-sub"></div>
+        <div class="sub hidden" id="e-srs"></div>
         <div class="breakdown" id="e-breakdown"></div>
         <button class="go" id="again">NOVO TREINO</button>
       </div>
@@ -483,25 +512,96 @@ const STATIC = {
 // Definição dos módulos (ordem do fluxo de trabalho real)
 const MODULES = [
   {id:"Sessão", label:"Sessão (login/logout)", type:"static"},
-  {id:"Disponibilidade", label:"Disponibilidade de voos", type:"gen", gen:genAvailability, n:6},
-  {id:"Venda", label:"Venda de assentos", type:"gen", gen:genSell, n:6},
+  {id:"Disponibilidade", label:"Disponibilidade de voos", type:"gen", gen:genAvailability, n:6, skill:"availability"},
+  {id:"Venda", label:"Venda de assentos", type:"gen", gen:genSell, n:6, skill:"sell"},
   {id:"PNR (montar reserva)", label:"PNR (montar reserva)", type:"static"},
   {id:"Recuperar / Visualizar", label:"Recuperar / Visualizar", type:"static"},
   {id:"Tarifação", label:"Tarifação", type:"static"},
-  {id:"Assentos", label:"Assentos (seat map)", type:"gen", gen:genSeat, n:5},
+  {id:"Assentos", label:"Assentos (seat map)", type:"gen", gen:genSeat, n:5, skill:"seat"},
   {id:"Serviços especiais (SSR)", label:"Serviços especiais (SSR)", type:"static"},
   {id:"Observações (Remarks / OSI)", label:"Observações (Remarks / OSI)", type:"static"},
-  {id:"Itinerário · modificar", label:"Itinerário (cancelar/alterar)", type:"gen", gen:genCancel, n:5},
+  {id:"Itinerário · modificar", label:"Itinerário (cancelar/alterar)", type:"gen", gen:genCancel, n:5, skill:"cancel"},
   {id:"Encode / Decode", label:"Encode / Decode", type:"static"},
   {id:"Filas (Queues)", label:"Filas (Queues)", type:"static"},
   {id:"Histórico e divisão", label:"Histórico e divisão", type:"static"}
 ];
+
+/* ============================ SRS (Leitner) — funções puras ============================ */
+const SRS = (function(){
+  const BOXES=5, INTERVALS=[1,2,4,8,15], DAY_MS=86400000;
+  function isDue(state, now){ return !state || state.due<=now; }
+  function srsNext(state, ok, now){
+    const box = state ? state.box : 1;
+    const nbox = ok ? Math.min(box+1, BOXES) : 1;
+    return {
+      box: nbox,
+      due: now + INTERVALS[nbox-1]*DAY_MS,
+      seen: (state? state.seen:0) + 1,
+      correct: (state? state.correct:0) + (ok?1:0),
+      lastResult: ok ? "ok" : "no",
+      lastSeen: now
+    };
+  }
+  function dayKey(ts){ const d=new Date(ts), p=n=>String(n).padStart(2,"0");
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+  function nextDayKey(key){ const [y,m,d]=key.split("-").map(Number);
+    return dayKey(new Date(y, m-1, d+1).getTime()); }
+  function updateStreak(streak, today){
+    if(!streak || !streak.lastDay) return {count:1, lastDay:today};
+    if(streak.lastDay===today) return {count:streak.count, lastDay:today};
+    if(nextDayKey(streak.lastDay)===today) return {count:streak.count+1, lastDay:today};
+    return {count:1, lastDay:today};
+  }
+  function buildReviewDeck(catalog, states, now, cap){
+    const seenDue=[], unseen=[], notDue=[];
+    catalog.forEach(sk=>{
+      const s=states[sk.id];
+      if(!s) unseen.push(sk);
+      else if(s.due<=now) seenDue.push(sk);
+      else notDue.push(sk);
+    });
+    seenDue.sort((a,b)=>{ const sa=states[a.id], sb=states[b.id]; return sa.box-sb.box || sa.due-sb.due; });
+    notDue.sort((a,b)=> states[a.id].box - states[b.id].box);
+    return seenDue.concat(unseen, notDue).slice(0, cap);
+  }
+  return { BOXES, INTERVALS, DAY_MS, isDue, srsNext, dayKey, nextDayKey, updateStreak, buildReviewDeck };
+})();
+
+/* ============================ CATÁLOGO DE SKILLS ============================ */
+const SKILLS = [];
+MODULES.forEach(m=>{
+  if(m.type==="gen") SKILLS.push({id:"g:"+m.skill, module:m.id, type:"gen", gen:m.gen, skill:m.skill});
+  else STATIC[m.id].forEach(it=> SKILLS.push({id:"s:"+m.id+":"+it.answer, module:m.id, type:"static", item:it}));
+});
 
 /* ============================ ESTADO ============================ */
 let MODE = "practice";
 let deck = [], idx = 0, score = 0, tot = 0, streak = 0, best = 0, answered = false;
 let pnrScenarios = [];
 let modStats = {};   // { grupo: {ok, tot} } para o placar por módulo
+let sessBoxUp = 0, sessBoxReset = 0;   // para a linha-resumo da revisão
+
+/* ============================ PERSISTÊNCIA SRS ============================ */
+const SRS_KEY = "sabre-srs-v1";
+function emptySrs(){ return { version:1, states:{}, dayStreak:{count:0,lastDay:null}, history:[] }; }
+function loadSRS(){
+  try{ const raw=localStorage.getItem(SRS_KEY); if(raw){ const d=JSON.parse(raw); if(d && d.version===1) return d; } }catch(e){}
+  return emptySrs();
+}
+function saveSRS(){ try{ localStorage.setItem(SRS_KEY, JSON.stringify(srsData)); }catch(e){} }
+let srsData = loadSRS();
+
+function recordSkill(skillId, ok){
+  if(!skillId) return;
+  const now = Date.now();
+  const prev = srsData.states[skillId];
+  const next = SRS.srsNext(prev, ok, now);
+  srsData.states[skillId] = next;
+  const prevBox = prev ? prev.box : 1;   // item novo começa implicitamente na caixa 1
+  if(next.box > prevBox) sessBoxUp++;
+  if(prev && !ok && prev.box > 1) sessBoxReset++;
+  saveSRS();
+}
 
 /* ============================ SETUP UI ============================ */
 const $ = s => document.querySelector(s);
@@ -520,6 +620,13 @@ modsEl.addEventListener("change",()=>$("#noMods").classList.add("hidden"));
 $("#selAll").addEventListener("click",()=>{ document.querySelectorAll("#mods input").forEach(c=>c.checked=true); $("#noMods").classList.add("hidden"); });
 $("#selNone").addEventListener("click",()=>{ document.querySelectorAll("#mods input").forEach(c=>c.checked=false); });
 
+// painel "Seu progresso"
+$("#progressLink").addEventListener("click",()=>{ renderProgress(); $("#clearConfirm").classList.add("hidden"); $("#progressPanel").classList.remove("hidden"); $("#progressClose").focus(); });
+$("#progressClose").addEventListener("click",()=>$("#progressPanel").classList.add("hidden"));
+$("#clearProgress").addEventListener("click",()=>{ $("#clearConfirm").classList.remove("hidden"); $("#clearStay").focus(); });
+$("#clearStay").addEventListener("click",()=>{ $("#clearConfirm").classList.add("hidden"); $("#clearProgress").focus(); });
+$("#clearLeave").addEventListener("click",()=>{ srsData=emptySrs(); saveSRS(); $("#clearConfirm").classList.add("hidden"); renderProgress(); refreshSrsUI(); });
+
 // dica de primeira-vez (mostrada só até o usuário iniciar um treino ou dispensar)
 const ONBOARD_KEY="sabre-onboarded";
 function isOnboarded(){ try{ return localStorage.getItem(ONBOARD_KEY)==="1"; }catch(e){ return false; } }
@@ -533,31 +640,93 @@ document.querySelectorAll(".seg").forEach(s=>{
     s.classList.add("on"); s.setAttribute("aria-pressed","true"); MODE = s.dataset.mode;
     $("#noMods").classList.add("hidden");
     $("#pnrNote").classList.toggle("hidden", MODE!=="pnr");
-    $("#mods").style.opacity = (MODE==="pnr") ? .4 : 1;
+    $("#reviewNote").classList.toggle("hidden", MODE!=="review");
+    $("#mods").style.opacity = (MODE==="pnr" || MODE==="review") ? .4 : 1;
+    refreshSrsUI();
   });
 });
+refreshSrsUI();
 
 function buildDeck(){
   const chosen = [...document.querySelectorAll("#mods input:checked")].map(c=>c.value);
   let d = [];
   MODULES.forEach(m=>{
     if(!chosen.includes(m.id)) return;
-    if(m.type==="gen"){ for(let i=0;i<m.n;i++){ const it=m.gen(); it.cat=m.id; d.push(it);} }
-    else STATIC[m.id].forEach(it=>d.push({...it, cat:m.id}));
+    if(m.type==="gen"){ for(let i=0;i<m.n;i++){ const it=m.gen(); it.cat=m.id; it.skillId="g:"+m.skill; d.push(it);} }
+    else STATIC[m.id].forEach(it=>d.push({...it, cat:m.id, skillId:"s:"+m.id+":"+it.answer}));
   });
   for(let i=d.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
   return d;
+}
+
+function buildReviewSessionDeck(){
+  const picked = SRS.buildReviewDeck(SKILLS, srsData.states, Date.now(), 30);
+  return picked.map(sk=>{
+    if(sk.type==="gen"){ const it=sk.gen(); it.cat=sk.module; it.skillId=sk.id; return it; }
+    return {...sk.item, cat:sk.module, skillId:sk.id};
+  });
+}
+function dueCount(){ const now=Date.now(); return SKILLS.filter(sk=>SRS.isDue(srsData.states[sk.id], now)).length; }
+function hasSrsHistory(){ return srsData.history.length>0 || Object.keys(srsData.states).length>0; }
+function refreshSrsUI(){
+  const has = hasSrsHistory();
+  $("#srsBar").classList.toggle("hidden", !has);
+  if(has){
+    const n = dueCount();
+    $("#srsSummary").innerHTML = `» <b style="color:var(--amber)">${n}</b> comando(s) para revisar hoje · sequência: <b>${srsData.dayStreak.count}</b> dia(s)`;
+  }
+  if(MODE==="review"){
+    const n = dueCount();
+    $("#start").textContent = n>0 ? `REVISAR (${n} VENCIDOS)` : "TUDO EM DIA ✓ — REVISAR MESMO ASSIM";
+  } else {
+    $("#start").textContent = "INICIAR TREINO";
+  }
+}
+function skillLabel(sk){
+  if(sk.type==="gen") return ({availability:"Disponibilidade",sell:"Venda",seat:"Mapa de assentos",cancel:"Cancelar segmento"})[sk.skill] || sk.module;
+  return sk.item.answer;
+}
+function renderProgress(){
+  const states=srsData.states;
+  const boxes=[0,0,0,0,0]; let totalSeen=0;
+  SKILLS.forEach(sk=>{ const st=states[sk.id]; if(st){ boxes[st.box-1]++; totalSeen+=st.seen; } });
+  const unseen = SKILLS.length - boxes.reduce((a,b)=>a+b,0);
+  let html = `<div class="brk-title">Distribuição por caixa (Leitner)</div>`;
+  boxes.forEach((c,i)=>{
+    const w=Math.round(c/SKILLS.length*100);
+    html += `<div class="brk-row"><div class="brk-name">Caixa ${i+1}</div>`+
+      `<div class="brk-bar"><i style="width:${w}%;background:var(--green-dim)"></i></div>`+
+      `<div class="brk-val">${c} cmd</div></div>`;
+  });
+  html += `<div class="brk-row"><div class="brk-name">Nunca vistos</div>`+
+    `<div class="brk-bar"><i style="width:${Math.round(unseen/SKILLS.length*100)}%;background:var(--line)"></i></div>`+
+    `<div class="brk-val">${unseen} cmd</div></div>`;
+  const weak = SKILLS.map(sk=>({sk, st:states[sk.id]}))
+    .filter(x=>x.st && x.st.seen>=1)
+    .map(x=>({label:skillLabel(x.sk), acc:Math.round(x.st.correct/x.st.seen*100), seen:x.st.seen}))
+    .sort((a,b)=> a.acc-b.acc || b.seen-a.seen).slice(0,5);
+  if(weak.length){
+    html += `<div class="brk-title" style="margin-top:14px">Comandos mais fracos</div>`;
+    html += weak.map(w=>{ const col=w.acc>=80?"var(--green)":w.acc>=50?"var(--amber)":"var(--red)";
+      return `<div class="brk-row"><div class="brk-name">${w.label}</div>`+
+        `<div class="brk-bar"><i style="width:${w.acc}%;background:${col}"></i></div>`+
+        `<div class="brk-val">${w.acc}%</div></div>`; }).join("");
+  }
+  html += `<div class="brk-tip">Sequência: ${srsData.dayStreak.count} dia(s) · total praticado: ${totalSeen} resposta(s).</div>`;
+  $("#progressBody").innerHTML=html;
 }
 
 $("#start").addEventListener("click",start);
 $("#again").addEventListener("click",()=>{ show("setup"); });
 
 function start(){
-  deck = (MODE==="pnr") ? buildPnrDeck(3) : buildDeck();
+  if(MODE==="review") deck = buildReviewSessionDeck();
+  else deck = (MODE==="pnr") ? buildPnrDeck(3) : buildDeck();
   if(!deck.length){ $("#noMods").classList.remove("hidden"); $("#start").focus(); return; }
   $("#noMods").classList.add("hidden");
   setOnboarded();
   idx=0; score=0; tot=0; streak=0; best=0; modStats={};
+  sessBoxUp=0; sessBoxReset=0;
   const typed = (MODE!=="flash");           // praticar e PNR usam entrada digitada
   $("#practiceUI").classList.toggle("hidden", !typed);
   $("#flashUI").classList.toggle("hidden", typed);
@@ -568,7 +737,7 @@ function start(){
 function show(id){
   ["setup","play","done"].forEach(s=>$("#"+s).classList.toggle("hidden", s!==id));
   $("#exitConfirm").classList.add("hidden");
-  if(id==="setup") $("#start").focus();
+  if(id==="setup"){ $("#start").focus(); refreshSrsUI(); }
   else if(id==="done") $("#again").focus();
 }
 
@@ -641,7 +810,7 @@ function renderPnr(it){
 
 /* ============================ MODO PRATICAR ============================ */
 $("#check").addEventListener("click",submitOrNext);
-$("#skip").addEventListener("click",()=>{ if(answered){next();} else { answered=true; tot++; streak=0; recordStat(groupOf(deck[idx]),false); reveal(false,"(pulado)"); $("#check").textContent="Próximo ⏎";} });
+$("#skip").addEventListener("click",()=>{ if(answered){next();} else { answered=true; tot++; streak=0; recordStat(groupOf(deck[idx]),false); recordSkill(deck[idx].skillId,false); reveal(false,"(pulado)"); $("#check").textContent="Próximo ⏎";} });
 $("#hint").addEventListener("click",()=>{
   const it=deck[idx]; const a=it.answer;
   const shown=a.slice(0,Math.max(1,Math.ceil(a.length/3)));
@@ -659,6 +828,7 @@ function submitOrNext(){
   const ok=isCorrect(val,it);
   if(ok){ score++; streak++; best=Math.max(best,streak); } else { streak=0; }
   recordStat(groupOf(it), ok);
+  recordSkill(it.skillId, ok);
   reveal(ok);
   $("#answer").disabled=true;
   $("#check").textContent="Próximo ⏎";
@@ -687,8 +857,8 @@ $("#revealBtn").addEventListener("click",()=>{
   $("#flashBtns1").classList.add("hidden");
   $("#flashBtns2").classList.remove("hidden");
 });
-$("#hit").addEventListener("click",()=>{ tot++; score++; streak++; best=Math.max(best,streak); recordStat(groupOf(deck[idx]),true); updateStats(); next(); });
-$("#miss").addEventListener("click",()=>{ tot++; streak=0; recordStat(groupOf(deck[idx]),false); updateStats(); next(); });
+$("#hit").addEventListener("click",()=>{ tot++; score++; streak++; best=Math.max(best,streak); recordStat(groupOf(deck[idx]),true); recordSkill(deck[idx].skillId,true); updateStats(); next(); });
+$("#miss").addEventListener("click",()=>{ tot++; streak=0; recordStat(groupOf(deck[idx]),false); recordSkill(deck[idx].skillId,false); updateStats(); next(); });
 
 /* ============================ AVANÇAR / FINALIZAR ============================ */
 function next(){ idx++; render(); }
@@ -722,6 +892,18 @@ function finish(){
   if(fracos.length) html += `<div class="brk-tip">⚠️ Foque em: ${fracos.join(", ")}.</div>`;
   $("#e-breakdown").innerHTML = html;
 
+  // persiste a sessão: histórico + streak (uma vez por sessão concluída)
+  const today = SRS.dayKey(Date.now());
+  srsData.dayStreak = SRS.updateStreak(srsData.dayStreak, today);
+  srsData.history.push({day:today, mode:MODE, total:tot, correct:score, byModule:JSON.parse(JSON.stringify(modStats))});
+  if(srsData.history.length>60) srsData.history = srsData.history.slice(-60);
+  saveSRS();
+
+  if(MODE==="review"){
+    $("#e-srs").classList.remove("hidden");
+    $("#e-srs").innerHTML = `${sessBoxUp} subiram de caixa · ${sessBoxReset} voltaram à caixa 1 · próxima revisão: amanhã`;
+  } else $("#e-srs").classList.add("hidden");
+
   show("done");
 }
 
@@ -753,6 +935,57 @@ document.addEventListener("keydown",e=>{
     e.preventDefault(); submitOrNext();
   }
 });
+
+/* ============================ AUTO-TESTE (?selftest=1) ============================ */
+function runSelfTest(){
+  let pass=0, fail=0; const fails=[];
+  const ok=(cond,msg)=>{ if(cond){pass++;} else {fail++; fails.push(msg); console.error("FAIL:",msg);} };
+  const eq=(a,b,msg)=>ok(JSON.stringify(a)===JSON.stringify(b), msg+" (got "+JSON.stringify(a)+", want "+JSON.stringify(b)+")");
+  const NOW=1000000000000, D=SRS.DAY_MS;
+
+  // 1. acerto sobe caixa, teto em 5, due cresce conforme INTERVALS
+  let s=SRS.srsNext(null,true,NOW);
+  eq(s.box,2,"novo acerto vai para caixa 2");
+  eq(s.due,NOW+SRS.INTERVALS[1]*D,"due da caixa 2 = +2 dias");
+  let t=s; for(let i=0;i<10;i++) t=SRS.srsNext(t,true,NOW);
+  eq(t.box,5,"teto de caixa em 5");
+
+  // 2. erro volta para caixa 1 e due = +1 dia
+  let e=SRS.srsNext(t,false,NOW);
+  eq(e.box,1,"erro volta para caixa 1");
+  eq(e.due,NOW+SRS.INTERVALS[0]*D,"due pos-erro = +1 dia");
+
+  // 3. isDue
+  ok(SRS.isDue(null,NOW),"nunca-visto e vencido");
+  ok(!SRS.isDue({box:1,due:NOW+D},NOW),"due futuro nao vencido");
+  ok(SRS.isDue({box:1,due:NOW-1},NOW),"due passado vencido");
+
+  // 4. buildReviewDeck: vencidos por caixa asc, completa com unseen, respeita cap
+  const cat=[{id:"a"},{id:"b"},{id:"c"},{id:"d"}];
+  const st={ a:{box:3,due:NOW-1}, b:{box:1,due:NOW-1}, d:{box:2,due:NOW+D} };
+  eq(SRS.buildReviewDeck(cat,st,NOW,10).map(x=>x.id),["b","a","c","d"],"ordem: box1 vencido, box3 vencido, unseen, nao-vencido");
+  eq(SRS.buildReviewDeck(cat,st,NOW,2).length,2,"respeita o cap");
+
+  // 5. updateStreak
+  eq(SRS.updateStreak({count:3,lastDay:"2026-06-23"},"2026-06-23"),{count:3,lastDay:"2026-06-23"},"mesmo dia inalterado");
+  eq(SRS.updateStreak({count:3,lastDay:"2026-06-22"},"2026-06-23"),{count:4,lastDay:"2026-06-23"},"dia seguinte incrementa");
+  eq(SRS.updateStreak({count:3,lastDay:"2026-06-20"},"2026-06-23"),{count:1,lastDay:"2026-06-23"},"lacuna reseta para 1");
+  eq(SRS.updateStreak(null,"2026-06-23"),{count:1,lastDay:"2026-06-23"},"streak inicial");
+
+  // 6. dayKey estável no mesmo dia local
+  eq(SRS.dayKey(NOW),SRS.dayKey(NOW+1000),"dayKey estavel em ts proximos");
+
+  // 7. catálogo com 33 skills (validado a partir do Chunk 2)
+  if(typeof SKILLS!=="undefined") eq(SKILLS.length,33,"catalogo com 33 skills");
+
+  const summary="SELFTEST: "+pass+" passed, "+fail+" failed";
+  console.log(summary);
+  const b=document.createElement("div");
+  b.style.cssText="position:fixed;top:0;left:0;right:0;z-index:9999;padding:8px;text-align:center;font:13px monospace;"+(fail?"background:#1a0a0a;color:#ff5d5d":"background:#0a1a0f;color:#3df57a");
+  b.textContent=summary+(fail?" — "+fails.join(" | "):" PASS");
+  document.body.appendChild(b);
+}
+if(new URLSearchParams(location.search).get("selftest")==="1") runSelfTest();
 </script>
 </body>
 </html>
